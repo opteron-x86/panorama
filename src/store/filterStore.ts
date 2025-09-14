@@ -1,0 +1,206 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { RuleFilters, FilterOption, FilterOptionsResponse } from '@/api/types';
+import { fetchFilterOptions } from '@/api/endpoints';
+
+interface FilterState {
+  filters: RuleFilters & {
+    deprecation_status?: 'all' | 'has_deprecated' | 'no_deprecated';
+  };
+
+  // Filter options
+  platformOptions: FilterOption[];
+  tacticOptions: FilterOption[];
+  ruleSourceOptions: FilterOption[];
+  severityOptions: FilterOption[];
+  rulePlatformOptions: FilterOption[];
+
+  // Loading state
+  isLoadingOptions: boolean;
+  optionsError: Error | null;
+  optionsLoadedAt: number | null;
+  optionsFetchPromise: Promise<void> | null;
+
+  // Actions
+  setSearchTerm: (search: string | undefined) => void;
+  setSeverities: (severities: string[]) => void;
+  setPlatforms: (platforms: string[]) => void;
+  setTactics: (tactics: string[]) => void;
+  setRuleSources: (sources: string[]) => void;
+  setRulePlatforms: (platforms: string[]) => void;
+  setMitreTechniques: (techniques: string[]) => void;
+  setTags: (tags: string[]) => void;
+  setDeprecationStatus: (status: 'all' | 'has_deprecated' | 'no_deprecated' | undefined) => void;
+  clearFilters: () => void;
+  fetchAllFilterOptions: () => Promise<void>;
+}
+
+const initialFilters: RuleFilters & { deprecation_status?: 'all' | 'has_deprecated' | 'no_deprecated' } = {
+  search: undefined,
+  severity: [],
+  platforms: [],
+  techniques: [],
+  tactics: [],
+  rule_source: [],
+  tags: [],
+  dateRange: null,
+  rule_platform: [],
+  mitre_techniques: [],
+  deprecation_status: undefined,
+};
+
+const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+export const useFilterStore = create<FilterState>()(
+  persist(
+    (set, get) => ({
+      filters: { ...initialFilters },
+      
+      platformOptions: [],
+      tacticOptions: [],
+      ruleSourceOptions: [],
+      severityOptions: [],
+      rulePlatformOptions: [],
+      
+      isLoadingOptions: false,
+      optionsError: null,
+      optionsLoadedAt: null,
+      optionsFetchPromise: null,
+
+      setSearchTerm: (search) => 
+        set((state) => ({ filters: { ...state.filters, search } })),
+      
+      setSeverities: (severity) => 
+        set((state) => ({ filters: { ...state.filters, severity } })),
+      
+      setPlatforms: (platforms) => 
+        set((state) => ({ filters: { ...state.filters, platforms } })),
+      
+      setTactics: (tactics) => 
+        set((state) => ({ filters: { ...state.filters, tactics } })),
+      
+      setRuleSources: (rule_source) => 
+        set((state) => ({ filters: { ...state.filters, rule_source } })),
+      
+      setRulePlatforms: (rule_platform) => 
+        set((state) => ({ filters: { ...state.filters, rule_platform } })),
+      
+      setMitreTechniques: (mitre_techniques) => 
+        set((state) => ({ filters: { ...state.filters, mitre_techniques } })),
+      
+      setTags: (tags) => 
+        set((state) => ({ filters: { ...state.filters, tags } })),
+      
+      setDeprecationStatus: (deprecation_status) =>
+        set((state) => ({ filters: { ...state.filters, deprecation_status } })),
+      
+      clearFilters: () => set({ filters: { ...initialFilters } }),
+
+      fetchAllFilterOptions: async () => {
+        const state = get();
+        
+        // Check cache validity
+        if (state.optionsLoadedAt && Date.now() - state.optionsLoadedAt < CACHE_DURATION_MS) {
+          return;
+        }
+        
+        // Return existing promise if fetch in progress
+        if (state.optionsFetchPromise) {
+          return state.optionsFetchPromise;
+        }
+        
+        // Create new fetch promise
+        const fetchPromise = (async () => {
+          set({ isLoadingOptions: true, optionsError: null });
+          
+          try {
+            const response: FilterOptionsResponse = await fetchFilterOptions();
+            
+            set({
+              platformOptions: response.platforms || [],
+              tacticOptions: response.tactics || [],
+              ruleSourceOptions: response.rule_sources || [],
+              severityOptions: response.severities || [],
+              rulePlatformOptions: response.rule_platforms || [],
+              isLoadingOptions: false,
+              optionsLoadedAt: Date.now(),
+              optionsFetchPromise: null,
+            });
+          } catch (error) {
+            console.error("Failed to fetch filter options:", error);
+            set({ 
+              optionsError: error as Error, 
+              isLoadingOptions: false,
+              optionsFetchPromise: null,
+            });
+            throw error;
+          }
+        })();
+        
+        set({ optionsFetchPromise: fetchPromise });
+        return fetchPromise;
+      },
+    }),
+    {
+      name: 'panorama-filters-v1',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ 
+        filters: state.filters,
+        // Persist options and cache timestamp
+        platformOptions: state.platformOptions,
+        tacticOptions: state.tacticOptions,
+        ruleSourceOptions: state.ruleSourceOptions,
+        severityOptions: state.severityOptions,
+        rulePlatformOptions: state.rulePlatformOptions,
+        optionsLoadedAt: state.optionsLoadedAt,
+      }),
+    }
+  )
+);
+
+// Selectors
+export const useCurrentFilters = () => useFilterStore((state) => state.filters);
+export const usePlatformOptions = () => useFilterStore((state) => state.platformOptions);
+export const useRulePlatformOptions = () => useFilterStore((state) => state.rulePlatformOptions);
+export const useTacticOptions = () => useFilterStore((state) => state.tacticOptions);
+export const useRuleSourceOptions = () => useFilterStore((state) => state.ruleSourceOptions);
+export const useSeverityOptions = () => useFilterStore((state) => state.severityOptions);
+export const useIsLoadingOptions = () => useFilterStore((state) => state.isLoadingOptions);
+export const useOptionsError = () => useFilterStore((state) => state.optionsError);
+export const useDeprecationStatus = () => useFilterStore((state) => state.filters.deprecation_status);
+
+// Computed selectors
+export const useActiveFilterCount = () => useFilterStore((state) => {
+  const filters = state.filters;
+  let count = 0;
+  
+  if (filters.search) count++;
+  if (filters.severity?.length) count += filters.severity.length;
+  if (filters.platforms?.length) count += filters.platforms.length;
+  if (filters.rule_platform?.length) count += filters.rule_platform.length;
+  if (filters.rule_source?.length) count += filters.rule_source.length;
+  if (filters.tactics?.length) count += filters.tactics.length;
+  if (filters.mitre_techniques?.length) count += filters.mitre_techniques.length;
+  if (filters.tags?.length) count += filters.tags.length;
+  if (filters.deprecation_status && filters.deprecation_status !== 'all') count++;
+  
+  return count;
+});
+
+export const useHasActiveFilters = () => useFilterStore((state) => {
+  const filters = state.filters;
+  
+  return !!(
+    filters.search ||
+    filters.severity?.length ||
+    filters.platforms?.length ||
+    filters.rule_platform?.length ||
+    filters.rule_source?.length ||
+    filters.tactics?.length ||
+    filters.mitre_techniques?.length ||
+    filters.tags?.length ||
+    (filters.deprecation_status && filters.deprecation_status !== 'all')
+  );
+});
+
+export default useFilterStore;
