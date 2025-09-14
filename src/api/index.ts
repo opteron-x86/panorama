@@ -1,3 +1,5 @@
+// src/api/index.ts
+
 // Export all API client functions
 export { apiGet, apiPost, apiPut, apiDelete } from './client';
 
@@ -28,7 +30,7 @@ export {
   fetchDashboardData,
   fetchTrendData,
   
-  // Deprecated
+  // Deprecation
   fetchDeprecationStatistics,
   fetchAffectedRules,
   checkRuleDeprecation,
@@ -36,9 +38,6 @@ export {
   
   // Search
   globalSearch,
-  
-  // Issues
-  createRuleIssue,
 } from './endpoints';
 
 // Export all types
@@ -50,6 +49,7 @@ export type {
   // Rules
   RuleSummary,
   RuleDetail,
+  BackendRuleSummary,
   MitreMapping,
   CveReference,
   FetchRulesResponse,
@@ -90,8 +90,4 @@ export type {
   
   // Search
   GlobalSearchResponse,
-  
-  // Issues
-  CreateIssuePayload,
-  CreateIssueResponse,
 } from './types';

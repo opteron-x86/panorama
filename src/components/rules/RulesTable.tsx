@@ -1,287 +1,298 @@
-import React, { useState } from 'react';
-import { useRules } from '@/hooks/useRules';
-import { RuleDetail, fetchRuleById } from '@/api';
+// src/components/rules/RulesTable.tsx
 
-const RulesTable: React.FC = () => {
-  const {
-    rules,
-    total,
-    loading,
-    error,
-    filterOptions,
-    pagination,
-    filters,
-    updateFilters,
-    updatePagination,
-    clearFilters,
-  } = useRules();
+import React, { useMemo, useCallback } from 'react';
+import {
+  DataGrid,
+  GridColDef,
+  GridRenderCellParams,
+  GridSortModel,
+  GridValueGetterParams,
+} from '@mui/x-data-grid';
+import {
+  Box,
+  Chip,
+  Stack,
+  Tooltip,
+  IconButton,
+  Typography,
+  useTheme,
+  alpha,
+} from '@mui/material';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
+import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import SecurityIcon from '@mui/icons-material/Security';
+import BugReportIcon from '@mui/icons-material/BugReport';
+import { RuleSummary } from '@/api/types';
+import { StatusBadge } from '@/components/common';
+import { formatDate } from '@/utils/format';
 
-  const [selectedRule, setSelectedRule] = useState<RuleDetail | null>(null);
-  const [detailsLoading, setDetailsLoading] = useState(false);
+interface RulesTableProps {
+  rules: RuleSummary[];
+  isLoading?: boolean;
+  sortModel?: GridSortModel;
+  onRuleSelect: (rule: RuleSummary) => void;
+  onBookmark: (ruleId: string) => void;
+  onSortChange: (model: GridSortModel) => void;
+  isBookmarked: (ruleId: string) => boolean;
+}
 
-  const handleRuleClick = async (ruleId: string) => {
-    setDetailsLoading(true);
-    try {
-      const details = await fetchRuleById(ruleId);
-      setSelectedRule(details);
-    } catch (err) {
-      console.error('Failed to load rule details:', err);
-    } finally {
-      setDetailsLoading(false);
-    }
-  };
+const RulesTable: React.FC<RulesTableProps> = ({
+  rules,
+  isLoading = false,
+  sortModel = [],
+  onRuleSelect,
+  onBookmark,
+  onSortChange,
+  isBookmarked,
+}) => {
+  const theme = useTheme();
 
-  const handlePageChange = (page: number) => {
-    updatePagination({ page });
-  };
+  const columns: GridColDef[] = useMemo(() => [
+    {
+      field: 'bookmark',
+      headerName: '',
+      width: 50,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params: GridRenderCellParams) => (
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onBookmark(String(params.row.id));
+          }}
+        >
+          {isBookmarked(String(params.row.id)) ? (
+            <BookmarkIcon fontSize="small" color="primary" />
+          ) : (
+            <BookmarkBorderIcon fontSize="small" />
+          )}
+        </IconButton>
+      ),
+    },
+    {
+      field: 'id',
+      headerName: 'ID',
+      width: 80,
+      sortable: true,
+    },
+    {
+      field: 'title',
+      headerName: 'Title',
+      flex: 2,
+      minWidth: 200,
+      sortable: true,
+      renderCell: (params: GridRenderCellParams) => (
+        <Box>
+          <Typography variant="body2" fontWeight="medium">
+            {params.value}
+          </Typography>
+          {params.row.description && (
+            <Typography 
+              variant="caption" 
+              color="text.secondary"
+              sx={{
+                display: '-webkit-box',
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              {params.row.description}
+            </Typography>
+          )}
+        </Box>
+      ),
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 100,
+      sortable: true,
+      renderCell: (params: GridRenderCellParams) => (
+        <StatusBadge status={params.value} />
+      ),
+    },
+    {
+      field: 'severity',
+      headerName: 'Severity',
+      width: 100,
+      sortable: true,
+      renderCell: (params: GridRenderCellParams) => {
+        const severityColor = {
+          critical: 'error',
+          high: 'error',
+          medium: 'warning',
+          low: 'info',
+          informational: 'default',
+        }[params.value?.toLowerCase()] || 'default';
+        
+        return (
+          <Chip
+            label={params.value}
+            size="small"
+            color={severityColor as any}
+            variant="outlined"
+          />
+        );
+      },
+    },
+    {
+      field: 'rule_source',
+      headerName: 'Source',
+      width: 150,
+      sortable: true,
+    },
+    {
+      field: 'rule_platforms',
+      headerName: 'Platforms',
+      width: 150,
+      sortable: false,
+      renderCell: (params: GridRenderCellParams) => {
+        const platforms = params.value || [];
+        if (!platforms.length) return '-';
+        
+        return (
+          <Stack direction="row" spacing={0.5}>
+            {platforms.slice(0, 2).map((platform: string, index: number) => (
+              <Chip
+                key={index}
+                label={platform}
+                size="small"
+                variant="outlined"
+                sx={{ fontSize: '0.7rem' }}
+              />
+            ))}
+            {platforms.length > 2 && (
+              <Chip
+                label={`+${platforms.length - 2}`}
+                size="small"
+                variant="outlined"
+                sx={{ fontSize: '0.7rem' }}
+              />
+            )}
+          </Stack>
+        );
+      },
+    },
+    {
+      field: 'enrichment',
+      headerName: 'Enrichment',
+      width: 120,
+      sortable: false,
+      renderCell: (params: GridRenderCellParams) => {
+        const hasMitre = params.row.has_mitre_mapping;
+        const hasCve = params.row.has_cve_references;
+        
+        return (
+          <Stack direction="row" spacing={1}>
+            {hasMitre && (
+              <Tooltip title="MITRE ATT&CK Mapped">
+                <SecurityIcon fontSize="small" color="primary" />
+              </Tooltip>
+            )}
+            {hasCve && (
+              <Tooltip title="CVE References">
+                <BugReportIcon fontSize="small" color="warning" />
+              </Tooltip>
+            )}
+            {!hasMitre && !hasCve && (
+              <Typography variant="caption" color="text.disabled">
+                None
+              </Typography>
+            )}
+          </Stack>
+        );
+      },
+    },
+    {
+      field: 'modified_date',
+      headerName: 'Modified',
+      width: 120,
+      sortable: true,
+      valueGetter: (params: GridValueGetterParams) => {
+        return params.value ? new Date(params.value) : null;
+      },
+      renderCell: (params: GridRenderCellParams) => {
+        return params.value ? formatDate(params.value) : '-';
+      },
+    },
+    {
+      field: 'tags',
+      headerName: 'Tags',
+      width: 200,
+      sortable: false,
+      renderCell: (params: GridRenderCellParams) => {
+        const tags = params.value || [];
+        if (!tags.length) return '-';
+        
+        return (
+          <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
+            {tags.slice(0, 3).map((tag: string, index: number) => (
+              <Chip
+                key={index}
+                label={tag}
+                size="small"
+                sx={{
+                  fontSize: '0.7rem',
+                  height: 20,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                }}
+              />
+            ))}
+            {tags.length > 3 && (
+              <Typography variant="caption" color="text.secondary">
+                +{tags.length - 3}
+              </Typography>
+            )}
+          </Stack>
+        );
+      },
+    },
+  ], [theme, onBookmark, isBookmarked]);
 
-  const handleSortChange = (sortBy: string) => {
-    const sortDirection = 
-      pagination.sortBy === sortBy && pagination.sortDirection === 'asc' 
-        ? 'desc' 
-        : 'asc';
-    updatePagination({ sortBy, sortDirection });
-  };
-
-  const handleFilterChange = (filterType: keyof typeof filters, values: any) => {
-    updateFilters({ [filterType]: values });
-  };
-
-  if (error) {
-    return (
-      <div className="error-container">
-        <p>Error: {error}</p>
-        <button onClick={() => window.location.reload()}>Retry</button>
-      </div>
-    );
-  }
+  const handleRowClick = useCallback((params: any) => {
+    onRuleSelect(params.row as RuleSummary);
+  }, [onRuleSelect]);
 
   return (
-    <div className="rules-container">
-      {/* Filters Section */}
-      <div className="filters-bar">
-        <input
-          type="text"
-          placeholder="Search rules..."
-          value={filters.query || ''}
-          onChange={(e) => updateFilters({ query: e.target.value })}
-        />
-
-        {filterOptions && (
-          <>
-            <select
-              multiple
-              value={filters.severities || []}
-              onChange={(e) => {
-                const values = Array.from(e.target.selectedOptions, option => option.value);
-                handleFilterChange('severities', values);
-              }}
-            >
-              {filterOptions.severities.map(opt => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label} ({opt.count})
-                </option>
-              ))}
-            </select>
-
-            <select
-              multiple
-              value={filters.rule_sources || []}
-              onChange={(e) => {
-                const values = Array.from(e.target.selectedOptions, option => option.value);
-                handleFilterChange('rule_sources', values);
-              }}
-            >
-              {filterOptions.rule_sources.map(opt => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label} ({opt.count})
-                </option>
-              ))}
-            </select>
-
-            <label>
-              <input
-                type="checkbox"
-                checked={filters.has_mitre || false}
-                onChange={(e) => updateFilters({ has_mitre: e.target.checked })}
-              />
-              Has MITRE Mapping
-            </label>
-
-            <label>
-              <input
-                type="checkbox"
-                checked={filters.has_cves || false}
-                onChange={(e) => updateFilters({ has_cves: e.target.checked })}
-              />
-              Has CVE References
-            </label>
-          </>
-        )}
-
-        <button onClick={clearFilters}>Clear Filters</button>
-      </div>
-
-      {/* Results Section */}
-      <div className="results-info">
-        Showing {rules.length} of {total} rules
-      </div>
-
-      {/* Table */}
-      {loading ? (
-        <div>Loading...</div>
-      ) : (
-        <table className="rules-table">
-          <thead>
-            <tr>
-              <th onClick={() => handleSortChange('rule_id')}>
-                Rule ID {pagination.sortBy === 'rule_id' && (
-                  <span>{pagination.sortDirection === 'asc' ? '↑' : '↓'}</span>
-                )}
-              </th>
-              <th onClick={() => handleSortChange('name')}>
-                Name {pagination.sortBy === 'name' && (
-                  <span>{pagination.sortDirection === 'asc' ? '↑' : '↓'}</span>
-                )}
-              </th>
-              <th onClick={() => handleSortChange('severity')}>
-                Severity {pagination.sortBy === 'severity' && (
-                  <span>{pagination.sortDirection === 'asc' ? '↑' : '↓'}</span>
-                )}
-              </th>
-              <th>Source</th>
-              <th>MITRE</th>
-              <th>CVE</th>
-              <th onClick={() => handleSortChange('updated_date')}>
-                Updated {pagination.sortBy === 'updated_date' && (
-                  <span>{pagination.sortDirection === 'asc' ? '↑' : '↓'}</span>
-                )}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rules.map(rule => (
-              <tr key={rule.id} onClick={() => handleRuleClick(rule.rule_id)}>
-                <td>{rule.rule_id}</td>
-                <td>{rule.name}</td>
-                <td>
-                  <span className={`severity-badge severity-${rule.severity}`}>
-                    {rule.severity}
-                  </span>
-                </td>
-                <td>{rule.source.name}</td>
-                <td>{rule.extracted_mitre_count}</td>
-                <td>{rule.extracted_cve_count}</td>
-                <td>{new Date(rule.updated_date).toLocaleDateString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {/* Pagination */}
-      <div className="pagination">
-        <button
-          disabled={pagination.page === 1}
-          onClick={() => handlePageChange(pagination.page - 1)}
-        >
-          Previous
-        </button>
-        
-        <span>
-          Page {pagination.page} of {Math.ceil(total / pagination.limit)}
-        </span>
-        
-        <button
-          disabled={pagination.page >= Math.ceil(total / pagination.limit)}
-          onClick={() => handlePageChange(pagination.page + 1)}
-        >
-          Next
-        </button>
-
-        <select
-          value={pagination.limit}
-          onChange={(e) => updatePagination({ limit: Number(e.target.value), page: 1 })}
-        >
-          <option value={10}>10 per page</option>
-          <option value={25}>25 per page</option>
-          <option value={50}>50 per page</option>
-          <option value={100}>100 per page</option>
-        </select>
-      </div>
-
-      {/* Rule Details Modal */}
-      {selectedRule && (
-        <div className="modal-overlay" onClick={() => setSelectedRule(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            {detailsLoading ? (
-              <div>Loading details...</div>
-            ) : (
-              <>
-                <h2>{selectedRule.name}</h2>
-                <p>{selectedRule.description}</p>
-                
-                <div className="details-grid">
-                  <div>
-                    <strong>Rule ID:</strong> {selectedRule.rule_id}
-                  </div>
-                  <div>
-                    <strong>Severity:</strong> {selectedRule.severity}
-                  </div>
-                  <div>
-                    <strong>Type:</strong> {selectedRule.rule_type}
-                  </div>
-                  <div>
-                    <strong>Source:</strong> {selectedRule.source.name}
-                  </div>
-                </div>
-
-                {selectedRule.has_deprecated_techniques && (
-                  <div className="warning-banner">
-                    ⚠️ This rule contains deprecated MITRE techniques
-                  </div>
-                )}
-
-                <div className="metadata-section">
-                  <h3>Metadata</h3>
-                  {selectedRule.metadata.siem_platform && (
-                    <div>SIEM: {selectedRule.metadata.siem_platform}</div>
-                  )}
-                  {selectedRule.metadata.aor && (
-                    <div>AOR: {selectedRule.metadata.aor}</div>
-                  )}
-                  {selectedRule.metadata.data_sources && (
-                    <div>Data Sources: {selectedRule.metadata.data_sources.join(', ')}</div>
-                  )}
-                </div>
-
-                <div className="mitre-section">
-                  <h3>MITRE Techniques ({selectedRule.mitre_techniques.length})</h3>
-                  {selectedRule.mitre_techniques.map(tech => (
-                    <div key={tech.technique_id} className="technique-item">
-                      <strong>{tech.technique_id}</strong>: {tech.name}
-                      {tech.is_deprecated && <span className="deprecated-badge">Deprecated</span>}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="cve-section">
-                  <h3>CVE References ({selectedRule.cve_references.length})</h3>
-                  {selectedRule.cve_references.map(cve => (
-                    <div key={cve.cve_id} className="cve-item">
-                      <strong>{cve.cve_id}</strong> - {cve.severity}
-                      {cve.cvss_v3_score && <span> (CVSS: {cve.cvss_v3_score})</span>}
-                    </div>
-                  ))}
-                </div>
-
-                <button onClick={() => setSelectedRule(null)}>Close</button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+    <Box sx={{ height: '100%', width: '100%' }}>
+      <DataGrid
+        rows={rules}
+        columns={columns}
+        loading={isLoading}
+        sortModel={sortModel}
+        onSortModelChange={onSortChange}
+        onRowClick={handleRowClick}
+        disableRowSelectionOnClick
+        disableColumnFilter
+        hideFooter
+        rowHeight={60}
+        sx={{
+          border: 'none',
+          '& .MuiDataGrid-cell': {
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          },
+          '& .MuiDataGrid-columnHeaders': {
+            backgroundColor: alpha(theme.palette.background.paper, 0.8),
+            borderBottom: `2px solid ${theme.palette.divider}`,
+          },
+          '& .MuiDataGrid-row': {
+            cursor: 'pointer',
+            '&:hover': {
+              backgroundColor: alpha(theme.palette.primary.main, 0.04),
+            },
+          },
+          '& .MuiDataGrid-cell:focus': {
+            outline: 'none',
+          },
+          '& .MuiDataGrid-cell:focus-within': {
+            outline: 'none',
+          },
+        }}
+      />
+    </Box>
   );
 };
 

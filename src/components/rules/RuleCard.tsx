@@ -8,6 +8,7 @@ import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import LanguageIcon from '@mui/icons-material/Language';
 import HubIcon from '@mui/icons-material/Hub';
+import BugReportIcon from '@mui/icons-material/BugReport';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -15,7 +16,6 @@ import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { RuleSummary } from '@/api/types';
 import { Card, StatusBadge } from '@/components/common';
 import { formatDate } from '@/utils/format';
-// SEVERITY_DISPLAY is no longer needed here
 
 interface RuleCardProps {
   rule: RuleSummary;
@@ -32,21 +32,6 @@ const RuleCard: React.FC<RuleCardProps> = ({
 }) => {
   const theme = useTheme();
 
-  const {
-    id, title,
-    // severity, // REMOVED
-    rule_source, created_date,
-    rule_platforms = [],
-    linked_technique_ids = [],
-    status,
-    // validation_status, // REMOVED
-  } = rule;
-
-  // Since severity is not available on RuleSummary, we cannot display it here.
-  // We can only show the general status (e.g., enabled/disabled).
-
-  const validation_status = (rule as any).raw_rule?.validation_status;
-
   const handleCardClick = () => {
     if (onClick) {
       onClick(rule);
@@ -56,125 +41,126 @@ const RuleCard: React.FC<RuleCardProps> = ({
   const handleBookmarkClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onBookmark) {
-      onBookmark(id);
+      onBookmark(String(rule.id));
     }
   };
 
-  const renderChipsSection = (
-    items: string[],
-    label: string,
-    iconElement?: React.ReactNode,
-    chipVariant: 'filled' | 'outlined' = 'filled',
-    chipColor: 'default' | 'primary' | 'secondary' = 'default',
-    isLink: boolean = false
-  ) => {
-    if (!items || items.length === 0) return null;
-    const displayed = items.slice(0, 2);
-    const overflow = items.length - displayed.length;
-    const iconWrapperSx: SxProps<Theme> = { display: 'flex', alignItems: 'center', mr: 0.5, fontSize: '0.9rem', color: 'text.secondary' };
-
-    return (
-      <Box mt={1.5}>
-        <Typography variant="caption" color="text.secondary" fontWeight="600" display="block" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-          {iconElement && <Box component="span" sx={iconWrapperSx}>{iconElement}</Box>}
-          {label}
-        </Typography>
-        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-          {displayed.map((item) => (
-            <Tooltip title={item} key={`${label}-${item}`}>
-              <Chip
-                label={item}
-                size="small"
-                variant={chipVariant}
-                color={chipColor !== 'default' ? chipColor : undefined}
-                clickable={isLink}
-                component={isLink ? "a" : "div"}
-                href={isLink ? `https://attack.mitre.org/techniques/${item.replace('.', '/')}` : undefined}
-                target={isLink ? "_blank" : undefined}
-                rel={isLink ? "noopener noreferrer" : undefined}
-                onClick={isLink ? (e: React.MouseEvent) => e.stopPropagation() : undefined}
-                sx={{
-                  height: 20, fontSize: '0.7rem',
-                  fontFamily: isLink ? 'monospace' : undefined,
-                  bgcolor: chipColor === 'default' ? (chipVariant === 'outlined' ? 'transparent' : 'action.hover') : undefined,
-                  borderColor: chipColor === 'default' && chipVariant === 'outlined' ? 'divider' : undefined,
-                  mb: 0.5
-                }}
-              />
-            </Tooltip>
-          ))}
-          {overflow > 0 && (
-            <Tooltip title={items.slice(2).join(', ')}>
-              <Chip label={`+${overflow}`} size="small" sx={{ height: 20, fontSize: '0.7rem', bgcolor: 'grey.200', color: 'grey.700', mb: 0.5 }} />
-            </Tooltip>
-          )}
-        </Stack>
-      </Box>
-    );
+  // Determine status badge type based on rule status
+  const getStatusBadgeType = (status: boolean): 'success' | 'error' => {
+    return status ? 'success' : 'error';
   };
 
-  let validationIcon = <HelpOutlineIcon fontSize="inherit" />;
-  let validationChipLabel = "Unknown";
-  let validationChipColor: "default" | "success" | "error" = "default";
-  if (validation_status?.toLowerCase() === 'validated') {
-    validationIcon = <CheckCircleOutlineIcon fontSize="inherit" />;
-    validationChipLabel = "Validated";
-    validationChipColor = "success";
-  } else if (validation_status?.toLowerCase() === 'not_validated') {
-    validationIcon = <HighlightOffIcon fontSize="inherit" />;
-    validationChipLabel = "Not Validated";
-    validationChipColor = "error";
-  }
-
-  const ruleStatus = status?.toLowerCase() || 'unknown';
-  let statusBadgeType: 'success' | 'error' | 'default' | 'warning' = 'default';
-  if (ruleStatus === 'enabled') statusBadgeType = 'success';
-  else if (ruleStatus === 'disabled') statusBadgeType = 'error';
+  // Get severity color
+  const getSeverityColor = (severity: string): string => {
+    const severityColors: Record<string, string> = {
+      critical: theme.palette.error.main,
+      high: theme.palette.warning.main,
+      medium: theme.palette.info.main,
+      low: theme.palette.success.main,
+      info: theme.palette.grey[500],
+    };
+    return severityColors[severity.toLowerCase()] || theme.palette.grey[500];
+  };
 
   return (
     <Card
       sx={{ 
-        cursor: onClick ? 'pointer' : 'default', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        width: '100%',
-        height: 400,
+        cursor: onClick ? 'pointer' : 'default',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'all 0.2s ease',
+        '&:hover': onClick ? {
+          transform: 'translateY(-2px)',
+          boxShadow: theme.shadows[4],
+        } : {},
       }}
       onClick={handleCardClick}
-      aria-label={`Rule: ${title}`}
     >
-      {/* Header Section */}
+      {/* Header */}
       <Box sx={{ p: 2, pb: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1 }}>
-          <Box sx={{ flex: 1, pr: 1 }}>
-            <Typography variant="subtitle1" fontWeight="600" gutterBottom title={title}
-              sx={{ lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis', minHeight: '2.6em' }}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+          <Box sx={{ flex: 1, mr: 1 }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                lineHeight: 1.3,
+                minHeight: '2.6em',
+              }}
             >
-              {title || 'Untitled Rule'}
+              {rule.name}
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 0.5 }}>
-              <Chip label={rule_source} size="small" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 500, bgcolor: 'action.hover' }} />
-              <Typography variant="caption" color="text.secondary">{created_date ? formatDate(created_date) : '-'}</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+              <Typography variant="caption" color="text.secondary">
+                {rule.source?.name || 'Unknown Source'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">•</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {formatDate(rule.updated_date) || '-'}
+              </Typography>
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', gap: 0.5, pt:0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', gap: 0.5 }}>
             {onBookmark && (
               <Tooltip title={isBookmarked ? 'Remove bookmark' : 'Bookmark rule'}>
-                <IconButton size="small" onClick={handleBookmarkClick} sx={{ color: isBookmarked ? theme.palette.warning.main : theme.palette.action.active }}>
+                <IconButton 
+                  size="small" 
+                  onClick={handleBookmarkClick} 
+                  sx={{ color: isBookmarked ? theme.palette.warning.main : theme.palette.action.active }}
+                >
                   {isBookmarked ? <BookmarkIcon fontSize="small"/> : <BookmarkBorderIcon fontSize="small"/>}
                 </IconButton>
               </Tooltip>
             )}
-             <StatusBadge label={status || 'Unknown'} status={statusBadgeType} size="small" showDot={false}/>
+            <StatusBadge 
+              label={rule.is_active ? 'Active' : 'Inactive'} 
+              status={getStatusBadgeType(rule.is_active)} 
+              size="small" 
+              showDot={false}
+            />
           </Box>
         </Box>
+        
+        {/* Rule ID and Severity */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
-          <Tooltip title={id}>
-            <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', bgcolor: theme.palette.background.default, px: 1, py: 0.5, borderRadius: 1, maxWidth: 'calc(100% - 100px)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {id}
+          <Tooltip title={rule.rule_id}>
+            <Typography 
+              variant="caption" 
+              color="text.secondary" 
+              sx={{ 
+                fontFamily: 'monospace', 
+                bgcolor: theme.palette.background.default, 
+                px: 1, 
+                py: 0.5, 
+                borderRadius: 1, 
+                maxWidth: 'calc(100% - 100px)', 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis', 
+                whiteSpace: 'nowrap' 
+              }}
+            >
+              {rule.rule_id}
             </Typography>
           </Tooltip>
-          {/* Severity badge is removed here as it's not available */}
+          {rule.severity && (
+            <Chip
+              label={rule.severity.toUpperCase()}
+              size="small"
+              sx={{
+                bgcolor: getSeverityColor(rule.severity),
+                color: theme.palette.getContrastText(getSeverityColor(rule.severity)),
+                fontWeight: 600,
+                fontSize: '0.65rem',
+                height: 20,
+              }}
+            />
+          )}
         </Box>
       </Box>
 
@@ -187,33 +173,94 @@ const RuleCard: React.FC<RuleCardProps> = ({
           color="text.secondary"
           paragraph
           sx={{
-            mb: 1.5, display: '-webkit-box', WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis',
-            minHeight: '4.2em', 
+            mb: 1.5, 
+            display: '-webkit-box', 
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical', 
+            overflow: 'hidden', 
+            textOverflow: 'ellipsis',
+            minHeight: '3.6em', 
           }}
         >
           {rule.description || 'No description provided.'}
         </Typography>
 
-        <Box> 
-          {renderChipsSection(rule_platforms || [], "Rule Platforms", <LanguageIcon />, 'outlined', 'secondary')}
-          {renderChipsSection(linked_technique_ids || [], "Techniques", <HubIcon />, 'filled', 'primary', true)}
-          {validation_status && (
-            <Box mt={1.5}>
-                 <Typography variant="caption" color="text.secondary" fontWeight="600" display="block" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                    Validation
-                </Typography>
-                <Chip 
-                    icon={validationIcon} 
-                    label={validationChipLabel} 
-                    size="small" 
-                    color={validationChipColor} 
-                    variant="outlined" 
-                    sx={{height: 22, fontSize:'0.7rem'}} 
-                />
-            </Box>
+        {/* Enrichment Counts */}
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {rule.mitre_technique_count > 0 && (
+            <Tooltip title="MITRE ATT&CK Techniques">
+              <Chip
+                icon={<HubIcon sx={{ fontSize: 16 }} />}
+                label={rule.mitre_technique_count}
+                size="small"
+                variant="outlined"
+                color="primary"
+                sx={{ height: 24, fontSize: '0.75rem' }}
+              />
+            </Tooltip>
+          )}
+          
+          {rule.cve_count > 0 && (
+            <Tooltip title="CVE References">
+              <Chip
+                icon={<BugReportIcon sx={{ fontSize: 16 }} />}
+                label={rule.cve_count}
+                size="small"
+                variant="outlined"
+                color="error"
+                sx={{ height: 24, fontSize: '0.75rem' }}
+              />
+            </Tooltip>
+          )}
+          
+          {rule.rule_type && (
+            <Chip
+              label={rule.rule_type.toUpperCase()}
+              size="small"
+              variant="filled"
+              sx={{ 
+                height: 24, 
+                fontSize: '0.7rem',
+                bgcolor: theme.palette.action.hover,
+              }}
+            />
           )}
         </Box>
+
+        {/* Tags */}
+        {rule.tags && rule.tags.length > 0 && (
+          <Box sx={{ mt: 1.5 }}>
+            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+              {rule.tags.slice(0, 3).map((tag) => (
+                <Chip
+                  key={tag}
+                  label={tag}
+                  size="small"
+                  sx={{
+                    height: 20,
+                    fontSize: '0.65rem',
+                    bgcolor: 'transparent',
+                    border: `1px solid ${theme.palette.divider}`,
+                    mb: 0.5,
+                  }}
+                />
+              ))}
+              {rule.tags.length > 3 && (
+                <Chip
+                  label={`+${rule.tags.length - 3}`}
+                  size="small"
+                  sx={{
+                    height: 20,
+                    fontSize: '0.65rem',
+                    bgcolor: theme.palette.grey[200],
+                    color: theme.palette.grey[700],
+                    mb: 0.5,
+                  }}
+                />
+              )}
+            </Stack>
+          </Box>
+        )}
       </Box>
     </Card>
   );

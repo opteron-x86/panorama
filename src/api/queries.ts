@@ -9,7 +9,6 @@ import {
   keepPreviousData,
   UseQueryResult
 } from '@tanstack/react-query';
-import { apiGet } from './client';
 
 import {
   // Core endpoints
@@ -21,8 +20,9 @@ import {
   
   // MITRE endpoints
   fetchMitreMatrix,
-  fetchTechniqueCoverage,
+  fetchMitreCoverage,
   fetchMitreTechniques,
+  fetchMitreTactics,
   
   // CVE endpoints
   fetchCves,
@@ -33,16 +33,15 @@ import {
   fetchFilterOptions,
   globalSearch,
   
+  // Analytics endpoints
+  fetchDashboardData,
+  fetchTrendData,
+  
   // Deprecation management endpoints
-  fetchDeprecationStats,
-  fetchRulesWithDeprecatedTechniques,
+  fetchDeprecationStatistics,
+  fetchAffectedRules,
   checkRuleDeprecation,
   updateDeprecatedMappings,
-
-
-  
-  // Issue creation
-  createIssue,
 } from './endpoints';
 
 import {
@@ -55,23 +54,20 @@ import {
   FilterOptionsResponse,
   MitreMatrixData,
   MitreTechnique,
+  MitreTactic,
   DashboardStats,
+  TrendData,
   ExportOptions,
   ExportResponse,
   GlobalSearchResponse,
   CveData,
   CveStats,
-  CreateIssuePayload,
-  CreateIssueResponse,
   DeprecationStatistics,
   AffectedRulesResponse,
   RuleDeprecationCheck,
   UpdateMappingsOptions,
   UpdateMappingsResponse,
-  DeprecatedTechniqueWarning,
 } from './types';
-
-import { TrendData } from '@/pages/Dashboard/components/charts/ActivityTrend.types';
 
 // Define proper error type
 interface QueryError extends Error {
@@ -95,8 +91,8 @@ export const queryKeys = {
   
   // MITRE ATT&CK
   mitreMatrix: () => ['mitreMatrix'],
-  techniquesCoverage: (platform?: string | null, rulePlatform?: string | null) => [
-    'techniquesCoverage',
+  mitreCoverage: (platform?: string | null, rulePlatform?: string | null) => [
+    'mitreCoverage',
     platform ?? 'no_platform_filter',
     rulePlatform ?? 'no_rule_platform_filter',
   ],
@@ -105,6 +101,7 @@ export const queryKeys = {
     pagination ? JSON.stringify(pagination) : 'no_pagination',
     search ?? 'no_search',
   ],
+  mitreTactics: () => ['mitreTactics'],
 
   // Deprecation management
   deprecationStats: () => ['deprecation', 'stats'] as const,
@@ -129,7 +126,14 @@ export const queryKeys = {
     types ? JSON.stringify(types) : 'no_types',
   ],
   
-
+  // Analytics
+  dashboard: () => ['dashboard'],
+  trends: (startDate: string, endDate: string, granularity: string) => [
+    'trends',
+    startDate,
+    endDate,
+    granularity,
+  ],
 };
 
 // --- CORE RULES QUERY HOOKS ---
@@ -203,25 +207,24 @@ export const useMitreMatrixQuery = (
 ) => {
   return useQuery<MitreMatrixData, Error>({
     queryKey: queryKeys.mitreMatrix(),
-    queryFn: () => fetchMitreMatrix(), // Wrap in arrow function
-    staleTime: 15 * 60 * 1000,
+    queryFn: fetchMitreMatrix,
+    staleTime: 30 * 60 * 1000,
     ...options,
   });
 };
 
-export const useTechniqueCoverageQuery = (
+export const useMitreCoverageQuery = (
   platform?: string | null,
   rulePlatform?: string | null,
   options?: UseQueryOptions<TechniquesCoverageResponse, Error>
 ) => {
   return useQuery<TechniquesCoverageResponse, Error>({
-    queryKey: queryKeys.techniquesCoverage(platform, rulePlatform),
-    queryFn: () => fetchTechniqueCoverage(platform, rulePlatform),
+    queryKey: queryKeys.mitreCoverage(platform, rulePlatform),
+    queryFn: () => fetchMitreCoverage(),
     staleTime: 10 * 60 * 1000,
     ...options,
   });
 };
-
 
 export const useMitreTechniquesQuery = (
   pagination?: PaginationParams,
@@ -232,47 +235,52 @@ export const useMitreTechniquesQuery = (
     queryKey: queryKeys.mitreTechniques(pagination, search),
     queryFn: () => fetchMitreTechniques(pagination, search),
     placeholderData: keepPreviousData,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 15 * 60 * 1000,
     ...options,
   });
 };
 
+export const useMitreTacticsQuery = (
+  options?: UseQueryOptions<MitreTactic[], Error>
+) => {
+  return useQuery<MitreTactic[], Error>({
+    queryKey: queryKeys.mitreTactics(),
+    queryFn: async () => {
+      const response = await fetchMitreTactics();
+      return response.tactics || response;
+    },
+    staleTime: 30 * 60 * 1000,
+    ...options,
+  });
+};
 
 // --- DEPRECATION QUERY HOOKS ---
 
-/**
- * Hook for deprecation statistics
- */
 export const useDeprecationStatsQuery = (
   options?: UseQueryOptions<DeprecationStatistics, Error>
 ) => {
   return useQuery<DeprecationStatistics, Error>({
     queryKey: queryKeys.deprecationStats(),
-    queryFn: fetchDeprecationStats,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    queryFn: fetchDeprecationStatistics,
+    staleTime: 30 * 60 * 1000,
     ...options,
   });
 };
 
-/**
- * Hook for fetching rules with deprecated techniques
- */
-export const useRulesWithDeprecatedQuery = (
+export const useAffectedRulesQuery = (
+  techniqueId?: string,
   options?: UseQueryOptions<AffectedRulesResponse, Error>
 ) => {
   return useQuery<AffectedRulesResponse, Error>({
     queryKey: queryKeys.deprecatedRules(),
-    queryFn: fetchRulesWithDeprecatedTechniques,
-    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+    queryFn: () => fetchAffectedRules(techniqueId),
+    enabled: !!techniqueId || techniqueId === undefined,
+    staleTime: 10 * 60 * 1000,
     ...options,
   });
 };
 
-/**
- * Hook for checking specific rule deprecation status
- * Integrates with existing rule detail data
- */
-export const useRuleDeprecationCheck = (
+export const useRuleDeprecationCheckQuery = (
   ruleId: string | null,
   options?: UseQueryOptions<RuleDeprecationCheck, Error>
 ) => {
@@ -280,86 +288,9 @@ export const useRuleDeprecationCheck = (
     queryKey: queryKeys.ruleDeprecationCheck(ruleId!),
     queryFn: () => checkRuleDeprecation(ruleId!),
     enabled: !!ruleId,
-    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    staleTime: 10 * 60 * 1000,
     ...options,
   });
-};
-
-// Hook for fetching system-wide deprecation statistics
-export const useDeprecationStats = (
-  options?: UseQueryOptions<DeprecationStatistics, Error>
-) => {
-  return useQuery<DeprecationStatistics, Error>({
-    queryKey: queryKeys.deprecationStats(),
-    queryFn: fetchDeprecationStats,
-    staleTime: 30 * 60 * 1000, // Cache for 30 minutes
-    ...options,
-  });
-};
-
-/**
- * Mutation hook for updating deprecated mappings
- */
-export const useUpdateDeprecatedMappings = (
-  options?: UseMutationOptions<UpdateMappingsResponse, Error, UpdateMappingsOptions>
-) => {
-  const queryClient = useQueryClient();
-  
-  return useMutation<UpdateMappingsResponse, Error, UpdateMappingsOptions>({
-    mutationFn: updateDeprecatedMappings,
-    onSuccess: (data, variables) => {
-      // Invalidate relevant queries after successful update
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.deprecationStats(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.deprecatedRules(),
-      });
-      
-      // Invalidate specific rule queries if rule IDs were provided
-      if (variables.rule_ids?.length) {
-        variables.rule_ids.forEach(ruleId => {
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.ruleDetail(ruleId),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.ruleDeprecationCheck(ruleId),
-          });
-        });
-      }
-      
-      // Invalidate all rules queries to reflect updates
-      queryClient.invalidateQueries({
-        queryKey: ['rules'],
-      });
-    },
-    ...options,
-  });
-};
-
-// --- HELPER HOOKS ---
-
-/**
- * Combined hook for rule detail with deprecation check
- * Fetches both rule details and deprecation status in parallel
- */
-export const useRuleWithDeprecationCheck = (
-  ruleId: string | null,
-  options?: {
-    ruleOptions?: UseQueryOptions<RuleDetail, Error>;
-    deprecationOptions?: UseQueryOptions<RuleDeprecationCheck, Error>;
-  }
-) => {
-  const ruleQuery = useRuleQuery(ruleId, options?.ruleOptions);
-  const deprecationQuery = useRuleDeprecationCheck(ruleId, options?.deprecationOptions);
-  
-  return {
-    rule: ruleQuery.data,
-    deprecation: deprecationQuery.data,
-    isLoading: ruleQuery.isLoading || deprecationQuery.isLoading,
-    isError: ruleQuery.isError || deprecationQuery.isError,
-    error: ruleQuery.error || deprecationQuery.error,
-  };
 };
 
 // --- CVE QUERY HOOKS ---
@@ -367,9 +298,9 @@ export const useRuleWithDeprecationCheck = (
 export const useCvesQuery = (
   pagination: PaginationParams,
   filters?: { severities?: string[]; with_rules_only?: boolean; query?: string },
-  options?: UseQueryOptions<{ items: CveData[]; total: number }, Error>
+  options?: UseQueryOptions<{ cves: CveData[]; total: number }, Error>
 ) => {
-  return useQuery<{ items: CveData[]; total: number }, Error>({
+  return useQuery<{ cves: CveData[]; total: number }, Error>({
     queryKey: queryKeys.cves(pagination, filters),
     queryFn: () => fetchCves(pagination, filters),
     placeholderData: keepPreviousData,
@@ -431,51 +362,34 @@ export const useGlobalSearchQuery = (
   });
 };
 
+// --- ANALYTICS QUERY HOOKS ---
 
-
-export const useTrendAnalysisQuery = (
-  days_back: number = 30
-): UseQueryResult<TrendData, Error> => {
-  return useQuery<TrendData, Error>({
-    queryKey: ['trends', days_back],
-    queryFn: async () => {
-      return apiGet<TrendData>('/analytics/trends', { days_back });
-    },
-    staleTime: 300000,
-  });
-};
-
-
-
-
-
-
-
-
-// --- MUTATION HOOKS ---
-
-// FIX 2: Updated to match the createIssue function signature that only takes payload
-export const useCreateIssueMutation = (
-  options?: UseMutationOptions<CreateIssueResponse, Error, CreateIssuePayload>
+export const useDashboardQuery = (
+  options?: UseQueryOptions<DashboardStats, Error>
 ) => {
-  const queryClient = useQueryClient();
-  
-  return useMutation<CreateIssueResponse, Error, CreateIssuePayload>({
-    mutationFn: (payload) => createIssue(payload),
-    onSuccess: (data, variables) => {
-      // Invalidate the rule detail query for the affected rule
-      if (variables.rule_id) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.ruleDetail(variables.rule_id),
-        });
-      }
-    },
+  return useQuery<DashboardStats, Error>({
+    queryKey: queryKeys.dashboard(),
+    queryFn: fetchDashboardData,
+    staleTime: 5 * 60 * 1000,
     ...options,
   });
 };
 
-// Legacy alias
-export const useCreateIssue = useCreateIssueMutation;
+export const useTrendAnalysisQuery = (
+  startDate: string,
+  endDate: string,
+  granularity: 'day' | 'week' | 'month' = 'day',
+  options?: UseQueryOptions<TrendData[], Error>
+) => {
+  return useQuery<TrendData[], Error>({
+    queryKey: queryKeys.trends(startDate, endDate, granularity),
+    queryFn: () => fetchTrendData(startDate, endDate, granularity),
+    staleTime: 15 * 60 * 1000,
+    ...options,
+  });
+};
+
+// --- MUTATION HOOKS ---
 
 export const useExportRulesMutation = (
   options?: UseMutationOptions<ExportResponse, Error, ExportOptions>
@@ -485,3 +399,68 @@ export const useExportRulesMutation = (
     ...options,
   });
 };
+
+export const useUpdateDeprecatedMappingsMutation = (
+  options?: UseMutationOptions<UpdateMappingsResponse, Error, UpdateMappingsOptions>
+) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation<UpdateMappingsResponse, Error, UpdateMappingsOptions>({
+    mutationFn: updateDeprecatedMappings,
+    onSuccess: (data, variables) => {
+      // Invalidate relevant queries after successful update
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.deprecationStats(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.deprecatedRules(),
+      });
+      
+      // Invalidate specific rule queries if rule IDs were provided
+      if (variables.rule_ids?.length) {
+        variables.rule_ids.forEach(ruleId => {
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.ruleDetail(ruleId),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.ruleDeprecationCheck(ruleId),
+          });
+        });
+      }
+      
+      // Invalidate all rules queries to reflect updates
+      queryClient.invalidateQueries({
+        queryKey: ['rules'],
+      });
+    },
+    ...options,
+  });
+};
+
+// --- HELPER HOOKS ---
+
+/**
+ * Combined hook for rule detail with deprecation check
+ */
+export const useRuleWithDeprecationCheck = (
+  ruleId: string | null,
+  options?: {
+    ruleOptions?: UseQueryOptions<RuleDetail, Error>;
+    deprecationOptions?: UseQueryOptions<RuleDeprecationCheck, Error>;
+  }
+) => {
+  const ruleQuery = useRuleQuery(ruleId, options?.ruleOptions);
+  const deprecationQuery = useRuleDeprecationCheckQuery(ruleId, options?.deprecationOptions);
+  
+  return {
+    rule: ruleQuery.data,
+    deprecation: deprecationQuery.data,
+    isLoading: ruleQuery.isLoading || deprecationQuery.isLoading,
+    isError: ruleQuery.isError || deprecationQuery.isError,
+    error: ruleQuery.error || deprecationQuery.error,
+  };
+};
+
+// Legacy aliases for backward compatibility
+export const useDeprecationStats = useDeprecationStatsQuery;
+export const useRuleDeprecationCheck = useRuleDeprecationCheckQuery;
