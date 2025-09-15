@@ -273,6 +273,34 @@ export interface FilterOptionsResponse {
 }
 
 // Analytics Types
+export interface DashboardResponse {
+  metrics: {
+    total_rules: number;
+    active_rules: number;
+    inactive_rules: number;
+    rules_with_mitre: number;
+    rules_with_cves: number;
+    rules_with_both: number;
+  };
+  distributions: {
+    by_severity: Record<string, number>;
+    by_platform: Record<string, number>;
+    by_source: Record<string, number>;
+  };
+  coverage: {
+    total_techniques: number;
+    covered_techniques: number;
+    coverage_percentage: number;
+  };
+  trends: {
+    daily_activity: Array<{
+      date: string;
+      rules_created: number;
+      rules_updated: number;
+    }>;
+  };
+}
+
 export interface DashboardStats {
   total_rules: number;
   active_rules: number;

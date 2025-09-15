@@ -15,8 +15,8 @@ import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
 import { Card, ErrorDisplay } from '@/components/common';
-import { useTechniqueCoverageQuery } from '@/api/queries';
-import { TechniqueCoverageDetail } from '@/api/types';
+import { useMitreCoverageQuery } from '@/api/queries';
+import { MitreTechnique } from '@/api/types';
 import { CoverageGapsPanelProps } from './CoverageGapsPanel.types';
 
 export const CoverageGapsPanel: React.FC<CoverageGapsPanelProps> = ({ 
@@ -26,7 +26,7 @@ export const CoverageGapsPanel: React.FC<CoverageGapsPanelProps> = ({
   onViewMore
 }) => {
   const navigate = useNavigate();
-  const { data: coverageData, isLoading, isError, error } = useTechniqueCoverageQuery();
+  const { data: coverageData, isLoading, isError, error } = useMitreCoverageQuery();
 
   const coverageGaps = useMemo(() => {
     if (!coverageData?.techniques) return [];
@@ -36,7 +36,7 @@ export const CoverageGapsPanel: React.FC<CoverageGapsPanelProps> = ({
       .slice(0, maxItems);
   }, [coverageData, maxItems]);
 
-  const handleTechniqueClick = (technique: TechniqueCoverageDetail) => {
+  const handleTechniqueClick = (technique: MitreTechnique) => {
     if (onTechniqueClick) {
       onTechniqueClick(technique);
     } else {
@@ -89,83 +89,62 @@ export const CoverageGapsPanel: React.FC<CoverageGapsPanelProps> = ({
 
         {isError && (
           <ErrorDisplay 
-            message="Could not load coverage data." 
-            details={error?.message} 
+            message="Could not load coverage data."
+            error={error}
+            compact
           />
         )}
 
-        {!isLoading && !isError && coverageGaps.length > 0 && (
-          <List disablePadding>
-            {coverageGaps.map((tech, index) => (
-              <React.Fragment key={tech.technique_id}>
-                <ListItem disablePadding>
-                  <ListItemButton 
-                    onClick={() => handleTechniqueClick(tech)}
-                    sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      py: 1.5 
-                    }}
-                  >
-                    <ListItemText
-                      primary={
-                        <Typography 
-                          variant="body2" 
-                          fontWeight={500} 
-                          noWrap 
-                          title={tech.name}
-                          color="text.primary"
-                        >
-                          {tech.name}
-                        </Typography>
-                      }
-                      secondary={tech.technique_id}
-                    />
-                    <ArrowForwardIosIcon 
-                      sx={{ 
-                        fontSize: '0.9rem', 
-                        color: 'text.secondary' 
-                      }} 
-                    />
-                  </ListItemButton>
-                </ListItem>
-                {index < coverageGaps.length - 1 && <Divider component="li" />}
-              </React.Fragment>
-            ))}
-          </List>
-        )}
-
         {!isLoading && !isError && coverageGaps.length === 0 && (
-          <Box 
-            sx={{ 
-              p: 3, 
-              textAlign: 'center' 
-            }}
-          >
-            <Typography variant="h6" color="success.main">
-              Excellent Coverage!
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              No techniques with zero coverage found.
+          <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Typography color="text.secondary">
+              No coverage gaps found
             </Typography>
           </Box>
         )}
-      </Box>
 
-      <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider', textAlign: 'center' }}>
-        <ListItemButton 
-          component={RouterLink}
-          to="/attack-matrix"
-          onClick={(e: React.MouseEvent) => {
-            e.preventDefault();
-            handleViewMore();
-          }}
-          sx={{ justifyContent: 'center', py: 0.5 }}
-        >
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-            View Full Matrix
-          </Typography>
-        </ListItemButton>
+        {!isLoading && !isError && coverageGaps.length > 0 && (
+          <>
+            <List>
+              {coverageGaps.map((technique) => (
+                <ListItemButton
+                  key={technique.technique_id}
+                  onClick={() => handleTechniqueClick(technique)}
+                >
+                  <ListItemText
+                    primary={
+                      <Typography variant="body2" fontWeight="medium">
+                        {technique.technique_id}
+                      </Typography>
+                    }
+                    secondary={
+                      <Typography variant="caption" color="text.secondary">
+                        {technique.name}
+                      </Typography>
+                    }
+                  />
+                  <ArrowForwardIosIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                </ListItemButton>
+              ))}
+            </List>
+            
+            {coverageData && coverageData.techniques.filter(t => t.count === 0).length > maxItems && (
+              <>
+                <Divider />
+                <ListItemButton onClick={handleViewMore}>
+                  <ListItemText
+                    primary={
+                      <Typography variant="body2" color="primary">
+                        View all {coverageData.techniques.filter(t => t.count === 0).length} gaps
+                      </Typography>
+                    }
+                  />
+                  <ArrowForwardIosIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                </ListItemButton>
+              </>
+            )}
+          </>
+        )}
       </Box>
     </Card>
   );

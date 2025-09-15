@@ -1,8 +1,8 @@
-import { TechniqueCoverageDetail } from '@/api/types';
+import { MitreTechnique } from '@/api/types';
 
 export interface CoverageGapsPanelProps {
   className?: string;
   maxItems?: number;
-  onTechniqueClick?: (technique: TechniqueCoverageDetail) => void;
+  onTechniqueClick?: (technique: MitreTechnique) => void;
   onViewMore?: () => void;
 }

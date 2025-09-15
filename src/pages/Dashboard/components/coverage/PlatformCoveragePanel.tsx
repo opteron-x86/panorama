@@ -6,7 +6,6 @@ import {
   ListItem,
   LinearProgress,
   Skeleton,
-  useTheme,
 } from '@mui/material';
 import LanguageIcon from '@mui/icons-material/Language';
 
@@ -22,8 +21,7 @@ export const PlatformCoveragePanel: React.FC<PlatformCoveragePanelProps> = ({
   maxItems = 5,
   onPlatformClick
 }) => {
-  const theme = useTheme();
-  const { matrix, coverage, isLoading } = useMitreAttackData();
+  const { matrix, coverage, coverageMap, isLoading } = useMitreAttackData();
 
   const platformCoverage = useMemo((): PlatformCoverageData[] => {
     if (!matrix || !coverage) return [];
@@ -35,24 +33,26 @@ export const PlatformCoveragePanel: React.FC<PlatformCoveragePanelProps> = ({
     matrix.forEach(tactic => {
       tactic.techniques.forEach(tech => {
         if (tech.platforms && !tech.is_deprecated) {
-          tech.platforms.forEach(p => allPlatforms.add(p));
-          techniquePlatformMap.set(tech.id, tech.platforms);
+          tech.platforms.forEach((p: string) => allPlatforms.add(p));
+          techniquePlatformMap.set(tech.technique_id, tech.platforms);
         }
-        tech.subtechniques?.forEach(sub => {
+        tech.subtechniques?.forEach((sub: any) => {
           if (sub.platforms && !sub.is_deprecated) {
-            sub.platforms.forEach(p => allPlatforms.add(p));
-            techniquePlatformMap.set(sub.id, sub.platforms);
+            sub.platforms.forEach((p: string) => allPlatforms.add(p));
+            techniquePlatformMap.set(sub.technique_id || sub.id, sub.platforms);
           }
         });
       });
     });
 
-    // Get covered technique IDs
-    const coveredTechniqueIds = new Set(
-      coverage.techniques
-        .filter(t => t.count > 0)
-        .map(t => t.technique_id)
-    );
+    // Get covered technique IDs from coverageMap
+    const coveredTechniqueIds = new Set<string>();
+    coverageMap.forEach((value, key) => {
+      // Check if technique has coverage (count > 0)
+      if (value && 'count' in value && value.count > 0) {
+        coveredTechniqueIds.add(key);
+      }
+    });
 
     // Calculate coverage per platform
     const platformData: PlatformCoverageData[] = Array.from(allPlatforms).map(platform => {
@@ -98,7 +98,7 @@ export const PlatformCoveragePanel: React.FC<PlatformCoveragePanelProps> = ({
     return Object.values(aggregated)
       .sort((a, b) => b.coveragePercentage - a.coveragePercentage)
       .slice(0, maxItems);
-  }, [matrix, coverage, maxItems]);
+  }, [matrix, coverage, coverageMap, maxItems]);
 
   const getProgressColor = (percentage: number) => {
     if (percentage >= 80) return 'success';

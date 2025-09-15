@@ -2,4 +2,4 @@
 
 export { default as usePaginatedRules } from './usePaginatedRules';
 export { default as useRuleBookmarks } from './useRuleBookmarks';
-export { default as UseMitreAttackData } from './useMitreAttackData';
+export { default as useMitreAttackData } from './useMitreAttackData';

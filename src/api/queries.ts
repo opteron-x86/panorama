@@ -245,10 +245,7 @@ export const useMitreTacticsQuery = (
 ) => {
   return useQuery<MitreTactic[], Error>({
     queryKey: queryKeys.mitreTactics(),
-    queryFn: async () => {
-      const response = await fetchMitreTactics();
-      return response.tactics || response;
-    },
+    queryFn: fetchMitreTactics, 
     staleTime: 30 * 60 * 1000,
     ...options,
   });
@@ -365,16 +362,15 @@ export const useGlobalSearchQuery = (
 // --- ANALYTICS QUERY HOOKS ---
 
 export const useDashboardQuery = (
-  options?: UseQueryOptions<DashboardStats, Error>
+  options?: UseQueryOptions<DashboardResponse, Error>
 ) => {
-  return useQuery<DashboardStats, Error>({
-    queryKey: queryKeys.dashboard(),
+  return useQuery<DashboardResponse, Error>({
+    queryKey: ['dashboard'],
     queryFn: fetchDashboardData,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000, // 1 minute cache
     ...options,
   });
 };
-
 export const useTrendAnalysisQuery = (
   startDate: string,
   endDate: string,

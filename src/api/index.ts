@@ -2,7 +2,8 @@
 
 // Export all API client functions
 export { apiGet, apiPost, apiPut, apiDelete } from './client';
-
+import { fetchMitreTactics as _fetchMitreTactics } from './endpoints';
+export const fetchMitreTactics = _fetchMitreTactics;
 // Export all endpoint functions
 export {
   // Rules
@@ -16,7 +17,7 @@ export {
   fetchMitreMatrix,
   fetchMitreCoverage,
   fetchMitreTechniques,
-  fetchMitreTactics,
+
   
   // CVE
   fetchCves,

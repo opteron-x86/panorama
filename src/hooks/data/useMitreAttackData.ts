@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import {
   useMitreMatrixQuery, 
-  useTechniqueCoverageQuery,
+  useMitreCoverageQuery,
   useFilterOptionsQuery,
 } from '@/api/queries';
 import { MitreTactic, TechniquesCoverageResponse } from '@/api/types';
@@ -27,7 +27,7 @@ export const useMitreAttackData = (platformFilter?: string | null) => {
     isError: isErrorCoverage,
     error: errorCoverage,
     refetch: refetchCoverage,
-  } = useTechniqueCoverageQuery(platformFilter);
+  } = useMitreCoverageQuery(platformFilter);
 
   // Fetch filter options for platforms and rule sources
   const { data: filterOptionsData } = useFilterOptionsQuery();

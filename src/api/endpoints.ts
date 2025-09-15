@@ -506,8 +506,8 @@ export const fetchFilterOptions = async (): Promise<FilterOptionsResponse> => {
 /**
  * Fetch dashboard data
  */
-export const fetchDashboardData = async (): Promise<DashboardStats> => {
-  const response = await apiGet<any>(ENDPOINTS.ANALYTICS_DASHBOARD);
+export const fetchDashboardData = async (): Promise<DashboardResponse> => {
+  const response = await apiGet<DashboardResponse>('/analytics/dashboard');
   return response;
 };
 
