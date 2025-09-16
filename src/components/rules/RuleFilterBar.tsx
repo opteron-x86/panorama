@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Divider,
-  Drawer,
   FormControlLabel,
   FormGroup,
   IconButton,
@@ -22,18 +21,12 @@ import {
   Collapse,
   TextField,
   InputAdornment,
-  Select,
-  MenuItem,
-  FormControl,
-  ToggleButton,
-  ToggleButtonGroup,
   Accordion,
   AccordionSummary,
   AccordionDetails,
 } from '@mui/material';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import CloseIcon from '@mui/icons-material/Close';
-import ClearIcon from '@mui/icons-material/Clear';
 import SearchIcon from '@mui/icons-material/Search';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SecurityIcon from '@mui/icons-material/Security';
@@ -43,8 +36,8 @@ import CategoryIcon from '@mui/icons-material/Category';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
-import { RuleFilters, RuleSeverity, FilterOption } from '../../api/types';
-import { FilterChip, ErrorDisplay } from '../common';
+import { RuleFilters, FilterOption } from '../../api/types';
+import { FilterChip } from '../common';
 import { SEVERITY_DISPLAY, SEVERITY_COLORS } from '../../utils/constants';
 import {
   useFilterStore,
@@ -56,6 +49,8 @@ import {
   useIsLoadingOptions,
   useOptionsError,
 } from '../../store/filterStore';
+
+type RuleSeverity = 'critical' | 'high' | 'medium' | 'low' | 'informational';
 
 interface FilterSectionProps {
   title: string;
@@ -183,7 +178,6 @@ const FilterSection: React.FC<FilterSectionProps> = ({
 const RuleFilterBar: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
 
   const filters = useFilterStore((state) => state.filters);
   const {
@@ -248,18 +242,18 @@ const RuleFilterBar: React.FC = () => {
   const handleAttackPlatformChange = useCallback((platformValue: string) => {
     const currentPlatforms = filters.platforms || [];
     const newPlatforms = currentPlatforms.includes(platformValue)
-      ? currentPlatforms.filter((p) => p !== platformValue)
+      ? currentPlatforms.filter((p: string) => p !== platformValue)
       : [...currentPlatforms, platformValue];
     setPlatforms(newPlatforms);
   }, [filters.platforms, setPlatforms]);
 
   const handleRulePlatformChange = useCallback((platformValue: string) => {
-    const currentPlatforms = filters.rule_platform || [];
+    const currentPlatforms = filters.rule_platforms || [];
     const newPlatforms = currentPlatforms.includes(platformValue)
-      ? currentPlatforms.filter((p) => p !== platformValue)
+      ? currentPlatforms.filter((p: string) => p !== platformValue)
       : [...currentPlatforms, platformValue];
     setRulePlatforms(newPlatforms);
-  }, [filters.rule_platform, setRulePlatforms]);
+  }, [filters.rule_platforms, setRulePlatforms]);
 
   const handleRuleSourceChange = useCallback((sourceValue: string) => {
     const currentSources = filters.rule_source || [];
@@ -283,10 +277,10 @@ const RuleFilterBar: React.FC = () => {
         setSeverities((filters.severity || []).filter((s) => s !== valueToRemove));
         break;
       case 'platforms':
-        setPlatforms((filters.platforms || []).filter((p) => p !== valueToRemove));
+        setPlatforms((filters.platforms || []).filter((p: string) => p !== valueToRemove));
         break;
-      case 'rule_platform':
-        setRulePlatforms((filters.rule_platform || []).filter((p) => p !== valueToRemove));
+      case 'rule_platforms':
+        setRulePlatforms((filters.rule_platforms || []).filter((p: string) => p !== valueToRemove));
         break;
       case 'rule_source':
         setRuleSources((filters.rule_source || []).filter((s) => s !== valueToRemove));
@@ -306,7 +300,7 @@ const RuleFilterBar: React.FC = () => {
     if (filters.search) count++;
     if (filters.severity?.length) count += filters.severity.length;
     if (filters.platforms?.length) count += filters.platforms.length;
-    if (filters.rule_platform?.length) count += filters.rule_platform.length;
+    if (filters.rule_platforms?.length) count += filters.rule_platforms.length;
     if (filters.rule_source?.length) count += filters.rule_source.length;
     if (filters.tactics?.length) count += filters.tactics.length;
     return count;
@@ -350,13 +344,13 @@ const RuleFilterBar: React.FC = () => {
       );
     });
 
-    filters.rule_platform?.forEach((platform) => {
+    filters.rule_platforms?.forEach((platform: string) => {
       chips.push(
         <FilterChip
           key={`rule-platform-${platform}`}
           label={platform}
           category="Platform"
-          onClear={() => handleRemoveFilter('rule_platform', platform)}
+          onClear={() => handleRemoveFilter('rule_platforms', platform)}
         />
       );
     });
@@ -390,8 +384,6 @@ const RuleFilterBar: React.FC = () => {
     <Paper
       elevation={0}
       sx={{
-        // borderRadius: 2,
-        // border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
         backgroundColor: theme.palette.background.paper,
         overflow: 'visible',
       }}
@@ -462,7 +454,6 @@ const RuleFilterBar: React.FC = () => {
             >
               {!isMobile && 'Filters'}
             </Button>
-
           </Stack>
         </Stack>
 
@@ -526,7 +517,7 @@ const RuleFilterBar: React.FC = () => {
               title="Rule Platform"
               icon={<DeviceHubIcon sx={{ fontSize: 18, color: theme.palette.success.main }} />}
               options={rulePlatformFilterOptions}
-              selectedValues={filters.rule_platform}
+              selectedValues={filters.rule_platforms}
               onChange={handleRulePlatformChange}
               loading={isLoadingOptions}
             />

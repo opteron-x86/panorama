@@ -6,7 +6,8 @@ import {
   GridColDef,
   GridRenderCellParams,
   GridSortModel,
-  GridValueGetterParams,
+  GridValueGetter,
+  GridRowParams,
 } from '@mui/x-data-grid';
 import {
   Box,
@@ -35,6 +36,8 @@ interface RulesTableProps {
   onSortChange: (model: GridSortModel) => void;
   isBookmarked: (ruleId: string) => boolean;
 }
+
+type SeverityColor = 'error' | 'warning' | 'info' | 'default' | 'primary' | 'secondary' | 'success';
 
 const RulesTable: React.FC<RulesTableProps> = ({
   rules,
@@ -111,7 +114,10 @@ const RulesTable: React.FC<RulesTableProps> = ({
       width: 100,
       sortable: true,
       renderCell: (params: GridRenderCellParams) => (
-        <StatusBadge status={params.value} />
+        <StatusBadge 
+          status={params.value} 
+          label={params.value === 'active' ? 'Active' : 'Inactive'}
+        />
       ),
     },
     {
@@ -120,19 +126,22 @@ const RulesTable: React.FC<RulesTableProps> = ({
       width: 100,
       sortable: true,
       renderCell: (params: GridRenderCellParams) => {
-        const severityColor = {
+        const severityColorMap: Record<string, SeverityColor> = {
           critical: 'error',
           high: 'error',
           medium: 'warning',
           low: 'info',
           informational: 'default',
-        }[params.value?.toLowerCase()] || 'default';
+        };
+        
+        const severityValue = params.value?.toLowerCase() || '';
+        const chipColor = severityColorMap[severityValue] || 'default';
         
         return (
           <Chip
             label={params.value}
             size="small"
-            color={severityColor as any}
+            color={chipColor}
             variant="outlined"
           />
         );
@@ -211,9 +220,9 @@ const RulesTable: React.FC<RulesTableProps> = ({
       headerName: 'Modified',
       width: 120,
       sortable: true,
-      valueGetter: (params: GridValueGetterParams) => {
-        return params.value ? new Date(params.value) : null;
-      },
+      valueGetter: ((value: string | null) => {
+        return value ? new Date(value) : null;
+      }) as GridValueGetter<RuleSummary, Date | null>,
       renderCell: (params: GridRenderCellParams) => {
         return params.value ? formatDate(params.value) : '-';
       },
@@ -252,8 +261,8 @@ const RulesTable: React.FC<RulesTableProps> = ({
     },
   ], [theme, onBookmark, isBookmarked]);
 
-  const handleRowClick = useCallback((params: any) => {
-    onRuleSelect(params.row as RuleSummary);
+  const handleRowClick = useCallback((params: GridRowParams<RuleSummary>) => {
+    onRuleSelect(params.row);
   }, [onRuleSelect]);
 
   return (

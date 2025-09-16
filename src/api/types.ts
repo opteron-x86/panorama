@@ -376,6 +376,7 @@ export interface DeprecationWarning {
   deprecation_reason: string;
   superseded_by?: string;
   recommendation: string;
+  revoked?: boolean;
 }
 
 export interface DeprecationStatistics {

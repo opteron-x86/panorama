@@ -1,5 +1,3 @@
-// src/pages/RulesExplorer/RulesExplorer.tsx
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
@@ -10,7 +8,6 @@ import {
   MenuItem,
   Drawer,
   useTheme,
-  useMediaQuery,
   Stack,
   Paper,
   Select,
@@ -107,73 +104,54 @@ const RulesExplorer: React.FC = () => {
   // URL search param sync
   useEffect(() => {
     const query = searchParams.get('q');
-    if (query && query !== '') {
+    if (query) {
       setSearchTerm(query);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount
-
-  // Add to recently viewed when detail loads
-  useEffect(() => {
-    if (selectedRuleFullDetail && selectedRuleIdForDetail) {
-      addRecentlyViewedRule(selectedRuleFullDetail);
-    }
-  }, [selectedRuleFullDetail, selectedRuleIdForDetail, addRecentlyViewedRule]);
-
+  }, [searchParams, setSearchTerm]);
+  
   // Computed values
+  const effectiveIsLoading = isLoading || isFetching;
+  
   const rulesToDisplay = useMemo(() => {
     if (showBookmarkedOnly) {
-      return fetchedRules.filter(rule => bookmarkedRules.has(String(rule.id)));
+      return fetchedRules.filter(rule => isBookmarked(String(rule.id)));
     }
     return fetchedRules;
-  }, [fetchedRules, showBookmarkedOnly, bookmarkedRules]);
-
-  const effectiveIsLoading = isLoading || isFetching;
-
-  // Event handlers
-  const handleRuleSelect = useCallback((ruleSummary: RuleSummary) => {
-    setSelectedRuleInStore(ruleSummary);
-    setSelectedRuleIdForDetail(String(ruleSummary.id));
+  }, [fetchedRules, showBookmarkedOnly, isBookmarked]);
+  
+  // Handlers
+  const handleRuleSelect = useCallback((rule: RuleSummary) => {
+    setSelectedRuleIdForDetail(String(rule.id));
+    setSelectedRuleInStore(rule);
+    addRecentlyViewedRule(rule);
     setDetailDrawerOpen(true);
-  }, [setSelectedRuleInStore]);
-
+  }, [setSelectedRuleInStore, addRecentlyViewedRule]);
+  
   const handleCloseDetail = useCallback(() => {
     setDetailDrawerOpen(false);
-    setTimeout(() => {
-      setSelectedRuleIdForDetail(null);
-      setSelectedRuleInStore(null);
-    }, 300);
-  }, [setSelectedRuleInStore]);
-
-  const handleRefresh = useCallback(() => {
-    refetch();
-  }, [refetch]);
-
+    setTimeout(() => setSelectedRuleIdForDetail(null), 300);
+  }, []);
+  
   const handleToggleShowBookmarked = useCallback(() => {
     setShowBookmarkedOnly(prev => !prev);
   }, []);
-
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    handlePageChange(1, newPageSize);
-  }, [handlePageChange]);
-
+  
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
+  
   const handleExportRules = useCallback(() => {
     setMoreMenuAnchor(null);
     
-    const rulesForExport = showBookmarkedOnly ? rulesToDisplay : fetchedRules;
-    if (!rulesForExport || rulesForExport.length === 0) {
-      alert('No rules to export.');
-      return;
-    }
-
-    // Client-side CSV export
+    const dataToExport = showBookmarkedOnly ? rulesToDisplay : fetchedRules;
     const csvContent = [
-      ['ID', 'Title', 'Description', 'Status', 'Source', 'Platforms', 'MITRE Techniques', 'Created', 'Modified'].join(','),
-      ...rulesForExport.map(rule => [
+      ['ID', 'Title', 'Description', 'Severity', 'Status', 'Source', 'Platforms', 'MITRE Techniques', 'Created', 'Modified'].join(','),
+      ...dataToExport.map(rule => [
         rule.id,
-        `"${(rule.title || '').replace(/"/g, '""')}"`,
-        `"${(rule.description || '').replace(/"/g, '""')}"`,
-        rule.status ?? 'unknown',
+        `"${rule.title.replace(/"/g, '""')}"`,
+        `"${rule.description?.replace(/"/g, '""') || ''}"`,
+        rule.severity,
+        rule.status,
         rule.rule_source,
         `"${(rule.rule_platforms ?? []).join('; ')}"`,
         `"${(rule.linked_technique_ids ?? []).join('; ')}"`,
@@ -193,8 +171,8 @@ const RulesExplorer: React.FC = () => {
     document.body.removeChild(link);
   }, [showBookmarkedOnly, rulesToDisplay, fetchedRules]);
 
-  const handleBookmarkClick = useCallback((rule: RuleSummary) => {
-    toggleBookmark(String(rule.id));
+  const handleBookmarkClick = useCallback((ruleId: string) => {
+    toggleBookmark(ruleId);
   }, [toggleBookmark]);
 
   const handleSortModelChange = useCallback((model: GridSortModel) => {
@@ -382,7 +360,7 @@ const RulesExplorer: React.FC = () => {
             </Typography>
             <Select
               value={pageSize}
-              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              onChange={(e) => handlePageChange(1, Number(e.target.value))}
               size="small"
               variant="standard"
             >
@@ -393,11 +371,11 @@ const RulesExplorer: React.FC = () => {
             </Select>
           </Stack>
 
-          <Typography variant="body2" color="text.secondary">
-            Page {currentPage} of {totalPages}
-          </Typography>
-
-          <Stack direction="row" spacing={0.5}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="body2" color="text.secondary">
+              Page {currentPage} of {totalPages}
+            </Typography>
+            
             <IconButton
               onClick={() => handlePageChange(1)}
               disabled={currentPage === 1 || effectiveIsLoading}
@@ -405,6 +383,7 @@ const RulesExplorer: React.FC = () => {
             >
               <FirstPageIcon fontSize="small" />
             </IconButton>
+            
             <IconButton
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1 || effectiveIsLoading}
@@ -412,6 +391,7 @@ const RulesExplorer: React.FC = () => {
             >
               <NavigateBeforeIcon fontSize="small" />
             </IconButton>
+            
             <IconButton
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages || effectiveIsLoading}
@@ -419,6 +399,7 @@ const RulesExplorer: React.FC = () => {
             >
               <NavigateNextIcon fontSize="small" />
             </IconButton>
+            
             <IconButton
               onClick={() => handlePageChange(totalPages)}
               disabled={currentPage === totalPages || effectiveIsLoading}
@@ -430,7 +411,7 @@ const RulesExplorer: React.FC = () => {
         </Box>
       </Paper>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       {renderContent()}
 
       {/* More Actions Menu */}
@@ -454,7 +435,7 @@ const RulesExplorer: React.FC = () => {
         </MenuItem>
       </Menu>
 
-      {/* Rule Detail Drawer - Fixed positioning below header */}
+      {/* Rule Detail Drawer */}
       <Drawer
         anchor="right"
         open={detailDrawerOpen}
@@ -463,8 +444,8 @@ const RulesExplorer: React.FC = () => {
           '& .MuiDrawer-paper': {
             width: { xs: '100%', sm: '500px', md: '600px' },
             maxWidth: '90vw',
-            top: 64, // Position below the 64px header
-            height: 'calc(100% - 64px)', // Adjust height to account for header
+            top: 64, 
+            height: 'calc(100% - 64px)', 
           },
         }}
       >
