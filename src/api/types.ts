@@ -118,6 +118,7 @@ export interface RuleDetail extends RuleSummary {
   
   // Metadata
   author?: string;
+  updated_date?: string;
   source_file_path?: string;
   siem_platform?: string;
   aor?: string;

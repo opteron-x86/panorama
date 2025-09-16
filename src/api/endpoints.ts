@@ -251,7 +251,7 @@ const transformBackendRuleDetail = (response: any): RuleDetail => {
     cves: response.cves || response.cve_references,
     
     // Metadata
-    author: response.author,
+    author: response.metadata?.author || response.author,
     source_file_path: response.source_file_path,
     siem_platform: response.siem_platform || response.rule_metadata?.siem_platform,
     aor: response.aor || response.rule_metadata?.aor,

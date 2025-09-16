@@ -8,7 +8,6 @@ import {
   Stack,
   Paper,
   IconButton,
-  Tooltip,
   Link,
   Button,
   Alert,
@@ -19,17 +18,12 @@ import {
   Slider,
   FormControlLabel,
   Switch,
-  Collapse,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Badge,
   useTheme,
   alpha,
+  Divider,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
@@ -37,14 +31,11 @@ import BookmarkIcon from '@mui/icons-material/Bookmark';
 import ShareIcon from '@mui/icons-material/Share';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import SecurityIcon from '@mui/icons-material/Security';
 import WarningIcon from '@mui/icons-material/Warning';
 import ErrorIcon from '@mui/icons-material/Error';
-import InfoIcon from '@mui/icons-material/Info';
-import BugReportIcon from '@mui/icons-material/BugReport';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import VerifiedIcon from '@mui/icons-material/Verified';
+import LinkIcon from '@mui/icons-material/Link';
+import StorageIcon from '@mui/icons-material/Storage';
 import { RuleDetail as RuleDetailType, MitreMapping } from '@/api/types';
 import { LoadingIndicator, ErrorDisplay } from '@/components/common';
 import { formatDate } from '@/utils/format';
@@ -73,8 +64,25 @@ interface RuleDetailProps {
   onUpdateDeprecated?: (ruleId: string) => void;
 }
 
+interface ExtendedRuleDetail extends RuleDetailType {
+  metadata?: {
+    author?: string;
+    source_org?: string;
+    data_sources?: string[];
+    references?: string[];
+    [key: string]: any;
+  };
+  source?: {
+    id: number;
+    name: string;
+    source_type?: string;
+  };
+  updated_date?: string;
+  name?: string;
+}
+
 const RuleDetail: React.FC<RuleDetailProps> = ({
-  rule,
+  rule: baseRule,
   isLoading = false,
   isError = false,
   error,
@@ -85,18 +93,18 @@ const RuleDetail: React.FC<RuleDetailProps> = ({
   onUpdateDeprecated,
 }) => {
   const theme = useTheme();
+  const rule = baseRule as ExtendedRuleDetail | null | undefined;
   
   const [tabValue, setTabValue] = useState(0);
-  const [confidenceThreshold, setConfidenceThreshold] = useState(1.0);
+  const [confidenceThreshold, setConfidenceThreshold] = useState(0.7);
   const [showAllTechniques, setShowAllTechniques] = useState(false);
   const [dismissedDeprecationWarning, setDismissedDeprecationWarning] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    metadata: true,
-    technical: false,
+    query: false,
     references: false,
+    metadata: false,
   });
 
-  // Deprecation calculations
   const deprecationInfo = useMemo(() => {
     if (!rule?.deprecated_technique_warnings) {
       return { hasDeprecated: false, count: 0, hasRevoked: false, hasReplacements: false };
@@ -152,9 +160,32 @@ const RuleDetail: React.FC<RuleDetailProps> = ({
     >
       <Stack spacing={1}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="subtitle2" fontWeight="bold">
+          <Link
+            href={`https://attack.mitre.org/techniques/${technique.technique_id.replace('.', '/')}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              fontWeight: 'bold',
+              fontSize: '0.875rem',
+              color: 'primary.main',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
             {technique.technique_id}
-          </Typography>
+            <OpenInNewIcon sx={{ fontSize: '0.875rem' }} />
+          </Link>
+          {technique.mapping_confidence && (
+            <Chip
+              label={`${(technique.mapping_confidence * 100).toFixed(0)}%`}
+              size="small"
+              variant="outlined"
+              sx={{ opacity: 0.7 }}
+            />
+          )}
           {technique.is_deprecated && (
             <Chip
               label="Deprecated"
@@ -173,19 +204,27 @@ const RuleDetail: React.FC<RuleDetailProps> = ({
           )}
         </Box>
         <Typography variant="body2">{technique.name}</Typography>
+        {technique.tactic && (
+          <Chip
+            label={technique.tactic}
+            size="small"
+            variant="outlined"
+            sx={{ width: 'fit-content' }}
+          />
+        )}
         {technique.description && (
-          <Typography variant="caption" color="text.secondary">
+          <Typography 
+            variant="caption" 
+            color="text.secondary"
+            sx={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
             {technique.description}
           </Typography>
-        )}
-        {onBookmark && (
-          <IconButton
-            size="small"
-            onClick={() => onBookmark(String(rule?.id))}
-            sx={{ ml: 'auto' }}
-          >
-            {isBookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
-          </IconButton>
         )}
       </Stack>
     </Paper>
@@ -213,38 +252,51 @@ const RuleDetail: React.FC<RuleDetailProps> = ({
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2,
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-        }}
-      >
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <Typography variant="h6" sx={{ flex: 1 }}>
-            Rule Details
+      <Box sx={{ position: 'relative' }}>
+        <Box
+          sx={{
+            p: 2,
+            pb: 3,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+          }}
+        >
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 400,
+              pr: 12,
+            }}
+          >
+            {rule.name || rule.title}
           </Typography>
+        </Box>
+        
+        <Stack 
+          direction="row" 
+          spacing={0.5}
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+          }}
+        >
           {onShare && (
-            <Tooltip title="Share">
-              <IconButton size="small" onClick={() => onShare(String(rule.id))}>
-                <ShareIcon />
-              </IconButton>
-            </Tooltip>
+            <IconButton size="small" onClick={() => onShare(String(rule.id))}>
+              <ShareIcon fontSize="small" />
+            </IconButton>
           )}
           {onBookmark && (
-            <Tooltip title={isBookmarked ? "Remove Bookmark" : "Add Bookmark"}>
-              <IconButton size="small" onClick={() => onBookmark(String(rule.id))}>
-                {isBookmarked ? <BookmarkIcon color="primary" /> : <BookmarkBorderIcon />}
-              </IconButton>
-            </Tooltip>
+            <IconButton size="small" onClick={() => onBookmark(String(rule.id))}>
+              {isBookmarked ? <BookmarkIcon fontSize="small" color="primary" /> : <BookmarkBorderIcon fontSize="small" />}
+            </IconButton>
           )}
           {onClose && (
             <IconButton size="small" onClick={onClose}>
-              <CloseIcon />
+              <CloseIcon fontSize="small" />
             </IconButton>
           )}
         </Stack>
-      </Paper>
+      </Box>
 
       {/* Content */}
       <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
@@ -280,55 +332,93 @@ const RuleDetail: React.FC<RuleDetailProps> = ({
           </Alert>
         )}
 
-        {/* Basic Info */}
         <Stack spacing={2}>
-          <Box>
-            <Typography variant="h5" gutterBottom>
-              {rule.title}
-            </Typography>
-            <Typography variant="body1" color="text.secondary" paragraph>
-              {rule.description}
-            </Typography>
-          </Box>
+          {/* Description */}
+          <Typography variant="body2" color="text.secondary">
+            {rule.description}
+          </Typography>
 
-          {/* Metadata Grid */}
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="caption" color="text.secondary">
-                Severity
-              </Typography>
-              <Chip
-                label={rule.severity}
-                size="small"
-                sx={{
-                  display: 'block',
-                  mt: 0.5,
-                  backgroundColor: alpha(getSeverityColor(rule.severity), 0.1),
-                  color: getSeverityColor(rule.severity),
-                }}
-              />
+
+          {/* Key Metadata */}
+          <Paper
+            variant="outlined"
+            sx={{ p: 2, backgroundColor: alpha(theme.palette.background.paper, 0.3) }}
+          >
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Severity
+                  </Typography>
+                  <Chip
+                    label={rule.severity}
+                    size="small"
+                    sx={{
+                      backgroundColor: alpha(getSeverityColor(rule.severity), 0.1),
+                      color: getSeverityColor(rule.severity),
+                      fontWeight: 600,
+                    }}
+                  />
+                </Stack>
+              </Grid>
+              
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Status
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {rule.status}
+                  </Typography>
+                </Stack>
+              </Grid>
+              
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Source
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {rule.source?.name || rule.rule_source || 'Unknown'}
+                  </Typography>
+                </Stack>
+              </Grid>
+              
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Source Type
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {rule.source?.source_type || 'Community'}
+                  </Typography>
+                </Stack>
+              </Grid>
+
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Author
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {rule.metadata?.author || rule.author}
+                  </Typography>
+                </Stack>
+              </Grid>
+
+              <Grid size={{ xs: 6, sm: 3 }}>
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Modified
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {rule.modified_date || rule.updated_date ? 
+                      formatDate(rule.modified_date || rule.updated_date || '') : '-'}
+                  </Typography>
+                </Stack>
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="caption" color="text.secondary">
-                Status
-              </Typography>
-              <Typography variant="body2">{rule.status}</Typography>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="caption" color="text.secondary">
-                Source
-              </Typography>
-              <Typography variant="body2">{rule.rule_source}</Typography>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Typography variant="caption" color="text.secondary">
-                Modified
-              </Typography>
-              <Typography variant="body2">
-                {rule.modified_date ? formatDate(rule.modified_date) : '-'}
-              </Typography>
-            </Grid>
-          </Grid>
+          </Paper>
 
           {/* Tags */}
           {rule.tags && rule.tags.length > 0 && (
@@ -336,127 +426,194 @@ const RuleDetail: React.FC<RuleDetailProps> = ({
               <Typography variant="subtitle2" gutterBottom>
                 Tags
               </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap">
-                {rule.tags.map((tag, index) => (
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {rule.tags.map((tag: string, index: number) => (
                   <Chip
                     key={index}
                     label={tag}
                     size="small"
                     variant="outlined"
+                    sx={{ mb: 0.5 }}
                   />
                 ))}
               </Stack>
             </Box>
           )}
 
+          {/* Data Sources */}
+          {rule.metadata?.data_sources && rule.metadata.data_sources.length > 0 && (
+            <Box>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                <StorageIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                <Typography variant="subtitle2">
+                  Data Sources
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {rule.metadata.data_sources.map((source: string, index: number) => (
+                  <Chip
+                    key={index}
+                    label={source}
+                    size="small"
+                    variant="filled"
+                    sx={{ 
+                      mb: 0.5,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                    }}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {/* References */}
+          {rule.metadata?.references && rule.metadata.references.length > 0 && (
+            <Accordion
+              expanded={expandedSections.references}
+              onChange={() => toggleSection('references')}
+              elevation={0}
+              sx={{ 
+                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                '&:before': { display: 'none' }
+              }}
+            >
+              <AccordionSummary 
+                expandIcon={<ExpandMoreIcon />}
+                sx={{ minHeight: 48 }}
+              >
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <LinkIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                  <Typography variant="subtitle2">
+                    References ({rule.metadata.references.length})
+                  </Typography>
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Stack spacing={1}>
+                  {rule.metadata.references.map((ref: string, index: number) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.action.hover, 0.04),
+                        },
+                        p: 0.5,
+                        borderRadius: 1,
+                      }}
+                    >
+                      <Link
+                        href={ref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                          fontSize: '0.875rem',
+                          textDecoration: 'none',
+                          flex: 1,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        {ref}
+                      </Link>
+                      <IconButton
+                        size="small"
+                        onClick={() => window.open(ref, '_blank')}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <OpenInNewIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  ))}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          )}
+
+          <Divider sx={{ my: 1 }} />
+
           {/* Tabs */}
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-              <Tab label="Technical Details" />
-              <Tab label="MITRE ATT&CK" />
-              <Tab label="CVE References" />
-              <Tab label="Metadata" />
+            <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} variant="scrollable">
+              <Tab label="Rule Query" />
+              <Tab label={`MITRE ATT&CK (${rule.mitre_techniques?.length || 0})`} />
+              <Tab label={`CVE References (${rule.cve_references?.length || 0})`} />
             </Tabs>
           </Box>
 
           {/* Tab Panels */}
           <TabPanel value={tabValue} index={0}>
-            <Stack spacing={2}>
-              {/* Rule Content */}
-              {rule.rule_content && (
-                <Accordion
-                  expanded={expandedSections.technical}
-                  onChange={() => toggleSection('technical')}
+            {rule.rule_content && (
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  backgroundColor: alpha(theme.palette.background.default, 0.5),
+                  position: 'relative',
+                }}
+              >
+                <IconButton
+                  size="small"
+                  sx={{ position: 'absolute', top: 8, right: 8 }}
+                  onClick={() => copyToClipboard(rule.rule_content || '')}
+                  title="Copy to clipboard"
                 >
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography variant="subtitle2">Rule Query</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Paper
-                      variant="outlined"
-                      sx={{
-                        p: 2,
-                        backgroundColor: alpha(theme.palette.background.default, 0.5),
-                        position: 'relative',
-                      }}
-                    >
-                      <IconButton
-                        size="small"
-                        sx={{ position: 'absolute', top: 8, right: 8 }}
-                        onClick={() => copyToClipboard(rule.rule_content || '')}
-                      >
-                        <ContentCopyIcon fontSize="small" />
-                      </IconButton>
-                      <pre style={{
-                        margin: 0,
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        fontSize: '0.875rem',
-                        fontFamily: 'monospace',
-                      }}>
-                        {rule.rule_content}
-                      </pre>
-                    </Paper>
-                  </AccordionDetails>
-                </Accordion>
-              )}
-
-              {/* Platforms */}
-              {rule.rule_platforms && rule.rule_platforms.length > 0 && (
-                <Box>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Platforms
-                  </Typography>
-                  <Stack direction="row" spacing={1}>
-                    {rule.rule_platforms.map((platform, index) => (
-                      <Chip
-                        key={index}
-                        label={platform}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
-                    ))}
-                  </Stack>
-                </Box>
-              )}
-            </Stack>
+                  <ContentCopyIcon fontSize="small" />
+                </IconButton>
+                <pre style={{
+                  margin: 0,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  fontSize: '0.75rem',
+                  fontFamily: 'monospace',
+                  lineHeight: 1.5,
+                }}>
+                  {rule.rule_content}
+                </pre>
+              </Paper>
+            )}
           </TabPanel>
 
           <TabPanel value={tabValue} index={1}>
             <Stack spacing={2}>
-              {/* Confidence Filter */}
               {rule.mitre_techniques && rule.mitre_techniques.length > 0 && (
                 <>
                   <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Confidence Threshold
-                    </Typography>
-                    <Slider
-                      value={confidenceThreshold}
-                      onChange={(_, value) => setConfidenceThreshold(value as number)}
-                      min={0}
-                      max={1}
-                      step={0.1}
-                      marks
-                      valueLabelDisplay="auto"
-                      valueLabelFormat={(value) => `${(value * 100).toFixed(0)}%`}
-                    />
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={showAllTechniques}
-                          onChange={(e) => setShowAllTechniques(e.target.checked)}
-                        />
-                      }
-                      label="Show all techniques"
-                    />
+                    <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Confidence Threshold
+                      </Typography>
+                      <Slider
+                        value={confidenceThreshold}
+                        onChange={(_, value) => setConfidenceThreshold(value as number)}
+                        min={0}
+                        max={1}
+                        step={0.1}
+                        marks
+                        valueLabelDisplay="auto"
+                        valueLabelFormat={(value) => `${(value * 100).toFixed(0)}%`}
+                        sx={{ flex: 1, maxWidth: 300 }}
+                      />
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={showAllTechniques}
+                            onChange={(e) => setShowAllTechniques(e.target.checked)}
+                            size="small"
+                          />
+                        }
+                        label="Show all"
+                      />
+                    </Stack>
                   </Box>
 
-                  {/* Techniques List */}
                   <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Mapped Techniques ({filteredTechniques.length})
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Showing {filteredTechniques.length} of {rule.mitre_techniques.length} techniques
                     </Typography>
                     {filteredTechniques.map(renderMitreTechnique)}
                   </Box>
@@ -483,9 +640,24 @@ const RuleDetail: React.FC<RuleDetailProps> = ({
                   >
                     <Stack spacing={1}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="subtitle2" fontWeight="bold">
+                        <Link
+                          href={`https://nvd.nist.gov/vuln/detail/${cve.cve_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          sx={{
+                            fontWeight: 'bold',
+                            fontSize: '0.875rem',
+                            color: 'primary.main',
+                            textDecoration: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            '&:hover': { textDecoration: 'underline' },
+                          }}
+                        >
                           {cve.cve_id}
-                        </Typography>
+                          <OpenInNewIcon sx={{ fontSize: '0.875rem' }} />
+                        </Link>
                         <Chip
                           label={cve.severity}
                           size="small"
@@ -522,69 +694,6 @@ const RuleDetail: React.FC<RuleDetailProps> = ({
                   <AlertTitle>No CVE References</AlertTitle>
                   This rule does not reference any known CVEs.
                 </Alert>
-              )}
-            </Stack>
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={3}>
-            <Stack spacing={2}>
-              {/* Author Info */}
-              {rule.author && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Author
-                  </Typography>
-                  <Typography variant="body2">{rule.author}</Typography>
-                </Box>
-              )}
-
-              {/* SIEM Platform */}
-              {rule.siem_platform && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    SIEM Platform
-                  </Typography>
-                  <Typography variant="body2">{rule.siem_platform}</Typography>
-                </Box>
-              )}
-
-              {/* Data Sources */}
-              {rule.data_sources && rule.data_sources.length > 0 && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Data Sources
-                  </Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-                    {rule.data_sources.map((source, index) => (
-                      <Chip
-                        key={index}
-                        label={source}
-                        size="small"
-                        variant="outlined"
-                      />
-                    ))}
-                  </Stack>
-                </Box>
-              )}
-
-              {/* Additional Metadata */}
-              {rule.rule_metadata && (
-                <Accordion>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Typography variant="subtitle2">Raw Metadata</Typography>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <pre style={{
-                      margin: 0,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      fontSize: '0.75rem',
-                      fontFamily: 'monospace',
-                    }}>
-                      {JSON.stringify(rule.rule_metadata, null, 2)}
-                    </pre>
-                  </AccordionDetails>
-                </Accordion>
               )}
             </Stack>
           </TabPanel>

@@ -186,33 +186,31 @@ const RulesExplorer: React.FC = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `rules_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `rules_export_${new Date().getTime()}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }, [showBookmarkedOnly, rulesToDisplay, fetchedRules]);
 
-  const handleViewModeChange = useCallback((_: React.MouseEvent<HTMLElement>, value: ViewMode | null) => {
-    if (value) setViewMode(value);
-  }, []);
-
-  const handleSortModelChange = useCallback((model: GridSortModel) => {
-    handleSortChange(model);
-  }, [handleSortChange]);
-
-  const handleBookmarkClick = useCallback((ruleId: string) => {
-    toggleBookmark(ruleId);
+  const handleBookmarkClick = useCallback((rule: RuleSummary) => {
+    toggleBookmark(String(rule.id));
   }, [toggleBookmark]);
 
-  // Render content
+  const handleSortModelChange = useCallback((model: GridSortModel) => {
+    if (model.length > 0) {
+      const { field, sort } = model[0];
+      handleSortChange(field, sort);
+    }
+  }, [handleSortChange]);
+
+  // Render helpers
   const renderContent = () => {
-    if (isError && error) {
+    if (isError) {
       return (
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ErrorDisplay
-            message={error.message || "Failed to load rules. Please try again."}
-            details={import.meta.env.DEV ? error.stack : undefined}
+          <ErrorDisplay 
+            message={error?.message || "Failed to load rules"} 
             onRetry={refetch}
           />
         </Box>
@@ -315,61 +313,48 @@ const RulesExplorer: React.FC = () => {
               },
             }}
           >
-            {showBookmarkedOnly ? <BookmarkIcon fontSize="small" /> : <BookmarkBorderIcon fontSize="small" />}
+            {showBookmarkedOnly ? <BookmarkIcon /> : <BookmarkBorderIcon />}
             <Typography variant="body2" sx={{ ml: 1 }}>
               Bookmarked ({bookmarkedRules.size})
             </Typography>
           </ToggleButton>
 
-          {/* Center section - Status */}
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="body2" color="text.secondary">
-              {effectiveIsLoading ? (
-                'Loading...'
-              ) : (
-                <>
-                  {showBookmarkedOnly ? 'Showing' : 'Found'} <strong>{rulesToDisplay.length}</strong>
-                  {showBookmarkedOnly ? ' bookmarked' : ' '} 
-                  {' '}of <strong>{totalRules}</strong> rules
-                </>
-              )}
-            </Typography>
-          </Stack>
+          {/* Center section - Results count */}
+          <Typography variant="body2" color="text.secondary">
+            {effectiveIsLoading ? (
+              'Loading...'
+            ) : (
+              `${rulesToDisplay.length} of ${totalRules.toLocaleString()} rules`
+            )}
+          </Typography>
 
-          {/* Right section - Actions */}
+          {/* Right section - View & Actions */}
           <Stack direction="row" spacing={1}>
-            {/* View Mode Toggle */}
             <ToggleButtonGroup
               value={viewMode}
               exclusive
-              onChange={handleViewModeChange}
+              onChange={(_, value) => value && setViewMode(value)}
               size="small"
             >
               <ToggleButton value="list">
-                <Tooltip title="List View">
-                  <ViewListIcon fontSize="small" />
-                </Tooltip>
+                <ViewListIcon fontSize="small" />
               </ToggleButton>
               <ToggleButton value="grid">
-                <Tooltip title="Grid View">
-                  <ViewModuleIcon fontSize="small" />
-                </Tooltip>
+                <ViewModuleIcon fontSize="small" />
               </ToggleButton>
             </ToggleButtonGroup>
 
-            {/* Refresh */}
             <Tooltip title="Refresh">
               <IconButton 
                 onClick={handleRefresh} 
-                size="small"
                 disabled={effectiveIsLoading}
+                size="small"
               >
                 <RefreshIcon fontSize="small" />
               </IconButton>
             </Tooltip>
 
-            {/* More Menu */}
-            <Tooltip title="More Options">
+            <Tooltip title="More Actions">
               <IconButton
                 onClick={(e) => setMoreMenuAnchor(e.currentTarget)}
                 size="small"
@@ -380,7 +365,7 @@ const RulesExplorer: React.FC = () => {
           </Stack>
         </Box>
 
-        {/* Pagination Controls */}
+        {/* Pagination */}
         <Box
           sx={{
             display: 'flex',
@@ -389,12 +374,11 @@ const RulesExplorer: React.FC = () => {
             px: 2,
             py: 1,
             borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-            backgroundColor: alpha(theme.palette.background.default, 0.5),
           }}
         >
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={2} alignItems="center">
             <Typography variant="body2" color="text.secondary">
-              Rows per page:
+              Items per page:
             </Typography>
             <Select
               value={pageSize}
@@ -409,11 +393,11 @@ const RulesExplorer: React.FC = () => {
             </Select>
           </Stack>
 
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="body2" color="text.secondary">
-              Page {currentPage} of {totalPages || 1}
-            </Typography>
-            
+          <Typography variant="body2" color="text.secondary">
+            Page {currentPage} of {totalPages}
+          </Typography>
+
+          <Stack direction="row" spacing={0.5}>
             <IconButton
               onClick={() => handlePageChange(1)}
               disabled={currentPage === 1 || effectiveIsLoading}
@@ -421,7 +405,6 @@ const RulesExplorer: React.FC = () => {
             >
               <FirstPageIcon fontSize="small" />
             </IconButton>
-            
             <IconButton
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1 || effectiveIsLoading}
@@ -429,18 +412,16 @@ const RulesExplorer: React.FC = () => {
             >
               <NavigateBeforeIcon fontSize="small" />
             </IconButton>
-            
             <IconButton
               onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages || effectiveIsLoading}
+              disabled={currentPage === totalPages || effectiveIsLoading}
               size="small"
             >
               <NavigateNextIcon fontSize="small" />
             </IconButton>
-            
             <IconButton
               onClick={() => handlePageChange(totalPages)}
-              disabled={currentPage >= totalPages || effectiveIsLoading}
+              disabled={currentPage === totalPages || effectiveIsLoading}
               size="small"
             >
               <LastPageIcon fontSize="small" />
@@ -473,7 +454,7 @@ const RulesExplorer: React.FC = () => {
         </MenuItem>
       </Menu>
 
-      {/* Rule Detail Drawer */}
+      {/* Rule Detail Drawer - Fixed positioning below header */}
       <Drawer
         anchor="right"
         open={detailDrawerOpen}
@@ -482,6 +463,8 @@ const RulesExplorer: React.FC = () => {
           '& .MuiDrawer-paper': {
             width: { xs: '100%', sm: '500px', md: '600px' },
             maxWidth: '90vw',
+            top: 64, // Position below the 64px header
+            height: 'calc(100% - 64px)', // Adjust height to account for header
           },
         }}
       >
