@@ -80,8 +80,8 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     if (newFilters.platforms !== undefined) {
       setPlatforms(newFilters.platforms);
     }
-    if (newFilters.rule_platform !== undefined) {
-      setRulePlatforms(newFilters.rule_platform);
+    if (newFilters.rule_platforms !== undefined) {
+      setRulePlatforms(newFilters.rule_platforms);
     }
     if (newFilters.rule_source !== undefined) {
       setRuleSources(newFilters.rule_source);
@@ -109,7 +109,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
       filters.search ||
       (filters.severity && filters.severity.length > 0) ||
       (filters.platforms && filters.platforms.length > 0) ||
-      (filters.rule_platform && filters.rule_platform.length > 0) ||
+      (filters.rule_platforms && filters.rule_platforms.length > 0) ||
       (filters.rule_source && filters.rule_source.length > 0) ||
       (filters.tactics && filters.tactics.length > 0)
     );
@@ -120,7 +120,7 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
     if (filters.search) count++;
     if (filters.severity && filters.severity.length > 0) count += filters.severity.length;
     if (filters.platforms && filters.platforms.length > 0) count += filters.platforms.length;
-    if (filters.rule_platform && filters.rule_platform.length > 0) count += filters.rule_platform.length;
+    if (filters.rule_platforms && filters.rule_platforms.length > 0) count += filters.rule_platforms.length;
     if (filters.rule_source && filters.rule_source.length > 0) count += filters.rule_source.length;
     if (filters.tactics && filters.tactics.length > 0) count += filters.tactics.length;
     return count;

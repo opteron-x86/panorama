@@ -5,117 +5,108 @@ import {
   useMitreCoverageQuery,
   useFilterOptionsQuery,
 } from '@/api/queries';
-import { MitreTactic, TechniquesCoverageResponse } from '@/api/types';
+import { MitreTactic, TechniquesCoverageResponse, MitreTechnique } from '@/api/types';
+
+// Extended type for techniques with coverage data
+interface MitreTechniqueCoverage extends MitreTechnique {
+  count?: number;
+  rule_count?: number;
+}
+
+interface ProcessedCoverageResponse extends Omit<TechniquesCoverageResponse, 'techniques'> {
+  techniques: MitreTechniqueCoverage[];
+}
 
 /**
  * Custom hook to fetch and process MITRE ATT&CK data with coverage information.
  */
-export const useMitreAttackData = (platformFilter?: string | null) => {
-  // Fetch the full matrix data (tactics with nested techniques/subtechniques)
+export const useMitreAttackData = (platformFilter?: string, rulePlatformFilter?: string) => {
   const {
-    data: matrixResponse,
+    data: matrixData,
     isLoading: isLoadingMatrix,
     isError: isErrorMatrix,
     error: errorMatrix,
-    refetch: refetchMatrix,
+    refetch: refetchMatrix
   } = useMitreMatrixQuery();
 
-  // Fetch technique coverage data, potentially filtered by platform
   const {
     data: coverageData,
     isLoading: isLoadingCoverage,
     isError: isErrorCoverage,
     error: errorCoverage,
-    refetch: refetchCoverage,
-  } = useMitreCoverageQuery(platformFilter);
+    refetch: refetchCoverage
+  } = useMitreCoverageQuery(platformFilter, rulePlatformFilter);
 
-  // Fetch filter options for platforms and rule sources
-  const { data: filterOptionsData } = useFilterOptionsQuery();
+  const {
+    data: filterOptionsData,
+  } = useFilterOptionsQuery();
 
-  // Process and validate matrix data
+  // Process matrix data to ensure consistent structure
   const processedMatrix = useMemo(() => {
-    if (!matrixResponse) return null;
+    if (!matrixData) return null;
     
-    // matrixResponse is already an array (MitreTactic[])
-    // extraction happens in fetchMitreMatrix endpoint
-    const matrixData = matrixResponse;
-    
-    // Ensure data is in the expected format
-    if (!Array.isArray(matrixData)) {
-      console.error('Matrix data is not an array:', matrixData);
-      return null;
-    }
-    
-    // Validate and clean the matrix data
-    return matrixData.map((tactic: MitreTactic) => ({
-      ...tactic,
-      // Ensure techniques array exists
-      techniques: (tactic.techniques || []).map(technique => ({
-        ...technique,
-        // Ensure subtechniques array exists
-        subtechniques: technique.subtechniques || [],
-        // Ensure platforms array exists
-        platforms: technique.platforms || [],
+    return {
+      ...matrixData,
+      tactics: matrixData.tactics.map(tactic => ({
+        ...tactic,
+        techniques: tactic.techniques.map(technique => ({
+          ...technique,
+          technique_id: technique.technique_id || technique.id,
+          // Remove subtechniques reference - field doesn't exist
+        }))
       }))
-    }));
-  }, [matrixResponse]);
+    };
+  }, [matrixData]);
 
-  // Extract available platforms from filter options or matrix data
+  // Extract available platforms from matrix data
   const availablePlatforms = useMemo(() => {
-    // Primary source: filter options
-    if (filterOptionsData?.platforms && filterOptionsData.platforms.length > 0) {
-      return filterOptionsData.platforms.map(p => p.value).sort();
-    }
+    if (!processedMatrix) return [];
     
-    // Fallback: derive from matrix data
-    if (processedMatrix) {
-      const platforms = new Set<string>();
-      processedMatrix.forEach(tactic => {
-        tactic.techniques.forEach(technique => {
-          technique.platforms?.forEach(platform => platforms.add(platform));
-          technique.subtechniques?.forEach(subtech => {
-            subtech.platforms?.forEach(platform => platforms.add(platform));
-          });
-        });
+    const platforms = new Set<string>();
+    processedMatrix.tactics.forEach(tactic => {
+      tactic.techniques.forEach(technique => {
+        if (technique.platforms) {
+          technique.platforms.forEach(platform => platforms.add(platform));
+        }
       });
-      return Array.from(platforms).sort();
-    }
+    });
     
-    return [];
-  }, [processedMatrix, filterOptionsData]);
+    return Array.from(platforms).sort();
+  }, [processedMatrix]);
 
-  // Extract available rule sources from filter options
+  // Get available rule sources from filter options
   const availableRuleSources = useMemo(() => {
-    if (filterOptionsData?.rule_sources && filterOptionsData.rule_sources.length > 0) {
+    if (filterOptionsData?.rule_sources) {
       return filterOptionsData.rule_sources.map(s => ({
         value: s.value,
         label: s.label,
-        count: 'rule_count' in s ? (s as any).rule_count : 0
+        count: s.count ?? 0
       }));
     }
     return [];
   }, [filterOptionsData]);
 
-  // Process coverage data to ensure consistency with matrix IDs
-  const processedCoverage = useMemo(() => {
+  // Process coverage data with proper typing
+  const processedCoverage = useMemo((): ProcessedCoverageResponse | null => {
     if (!coverageData) return null;
     
     return {
       ...coverageData,
-      // Ensure technique IDs in coverage match the format used in matrix
       techniques: coverageData.techniques.map(tech => ({
         ...tech,
-        // technique_id should match the 'id' field in MitreTechnique
         technique_id: tech.technique_id,
+        // Ensure count is available for coverage calculations
+        count: (tech as MitreTechniqueCoverage).count ?? 0,
+        rule_count: (tech as MitreTechniqueCoverage).rule_count ?? 0
       }))
-    } as TechniquesCoverageResponse;
+    };
   }, [coverageData]);
 
   // Create a map for quick coverage lookups
   const coverageMap = useMemo(() => {
-    if (!processedCoverage) return new Map();
+    if (!processedCoverage) return new Map<string, MitreTechniqueCoverage>();
     
-    const map = new Map();
+    const map = new Map<string, MitreTechniqueCoverage>();
     processedCoverage.techniques.forEach(tech => {
       map.set(tech.technique_id, tech);
     });

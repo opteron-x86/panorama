@@ -5,26 +5,12 @@ import { Box, Typography, Button, Paper, useTheme } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
-interface ErrorDisplayProps {
-  /**
-   * Error message to display
-   */
+export interface ErrorDisplayProps {
+  error?: Error | string | null;
+  title?: string;
   message?: string;
-  
-  /**
-   * Optional error details for developers
-   */
-  details?: string;
-  
-  /**
-   * Whether to show a retry button
-   */
-  retry?: boolean;
-  
-  /**
-   * Function to call when retry button is clicked
-   */
   onRetry?: () => void;
+  compact?: boolean;
 }
 
 /**

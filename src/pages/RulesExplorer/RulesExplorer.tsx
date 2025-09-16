@@ -178,7 +178,7 @@ const RulesExplorer: React.FC = () => {
   const handleSortModelChange = useCallback((model: GridSortModel) => {
     if (model.length > 0) {
       const { field, sort } = model[0];
-      handleSortChange(field, sort);
+      handleSortChange([{ field, sort }]);
     }
   }, [handleSortChange]);
 

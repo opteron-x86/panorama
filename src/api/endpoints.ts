@@ -14,7 +14,7 @@ import {
   MitreMatrixData,
   MitreTechnique,
   MitreTactic,
-  DashboardStats,
+  DashboardResponse,
   TrendData,
   ExportOptions,
   ExportResponse,

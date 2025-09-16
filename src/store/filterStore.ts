@@ -43,7 +43,7 @@ const initialFilters: RuleFilters & { deprecation_status?: 'all' | 'has_deprecat
   tactics: [],
   rule_source: [],
   tags: [],
-  dateRange: null,
+  dateRange: undefined,
   rule_platform: [],
   mitre_techniques: [],
   deprecation_status: undefined,
@@ -177,7 +177,7 @@ export const useActiveFilterCount = () => useFilterStore((state) => {
   if (filters.search) count++;
   if (filters.severity?.length) count += filters.severity.length;
   if (filters.platforms?.length) count += filters.platforms.length;
-  if (filters.rule_platform?.length) count += filters.rule_platform.length;
+  if (filters.rule_platforms?.length) count += filters.rule_platforms.length;
   if (filters.rule_source?.length) count += filters.rule_source.length;
   if (filters.tactics?.length) count += filters.tactics.length;
   if (filters.mitre_techniques?.length) count += filters.mitre_techniques.length;
@@ -194,7 +194,7 @@ export const useHasActiveFilters = () => useFilterStore((state) => {
     filters.search ||
     filters.severity?.length ||
     filters.platforms?.length ||
-    filters.rule_platform?.length ||
+    filters.rule_platforms?.length ||
     filters.rule_source?.length ||
     filters.tactics?.length ||
     filters.mitre_techniques?.length ||

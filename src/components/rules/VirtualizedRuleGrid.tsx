@@ -52,7 +52,7 @@ const Cell: React.FC<CellProps> = memo(({ columnIndex, rowIndex, style, data }) 
     <div style={adjustedStyle}>
       <RuleCard
         rule={rule}
-        isBookmarked={isBookmarked(rule.id)}
+        isBookmarked={isBookmarked(rule.id.toString())}
         onClick={onRuleSelect}
         onBookmark={onBookmark}
       />

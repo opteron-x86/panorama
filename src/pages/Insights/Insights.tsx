@@ -16,8 +16,9 @@ import SecurityIcon from '@mui/icons-material/Security';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import { Card, LoadingIndicator, ErrorDisplay } from '@/components/common';
-import { useRuleStatsQuery, useTechniqueCoverageQuery } from '@/api/queries';
+import { useRuleStatsQuery, useMitreCoverageQuery } from '@/api/queries';
 import { SEVERITY_COLORS, PLATFORM_COLORS } from '@/utils/constants';
+import type { MitreTechniqueCoverage } from '@/api/types';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -38,7 +39,7 @@ const Insights: React.FC = () => {
   const [timeRange, setTimeRange] = useState('30d');
   
   const { data: statsData, isLoading: isLoadingStats } = useRuleStatsQuery();
-  const { data: coverageData, isLoading: isLoadingCoverage } = useTechniqueCoverageQuery();
+  const { data: coverageData, isLoading: isLoadingCoverage } = useMitreCoverageQuery();
 
   // Mock time series data - in production, create an endpoint for historical data
   const timeSeriesData = [
@@ -66,7 +67,7 @@ const Insights: React.FC = () => {
 
   // Coverage gaps analysis
   const coverageGaps = coverageData?.techniques
-    ?.filter(t => t.count === 0)
+    ?.filter((t: MitreTechniqueCoverage) => (t.count ?? 0) === 0)
     .slice(0, 20) || [];
 
   // Rule source distribution for treemap
@@ -193,7 +194,7 @@ const Insights: React.FC = () => {
                   </Box>
                 ) : (
                   <Box sx={{ p: 1 }}>
-                    {coverageGaps.map((gap, idx) => (
+                    {coverageGaps.map((gap: MitreTechniqueCoverage, idx: number) => (
                       <Paper key={gap.technique_id} variant="outlined" sx={{ p: 1.5, mb: 1, borderLeft: `3px solid ${theme.palette.error.main}` }}>
                         <Typography variant="body2" fontWeight={500}>{idx + 1}. {gap.name}</Typography>
                         <Typography variant="caption" color="text.secondary">{gap.technique_id}</Typography>

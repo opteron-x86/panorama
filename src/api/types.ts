@@ -8,6 +8,8 @@ export interface PaginationParams {
   include_facets?: boolean;
 }
 
+export type RuleSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
+
 export interface RuleFilters {
   query?: string;
   search?: string;
@@ -227,8 +229,13 @@ export interface MitreMatrixData {
   };
 }
 
+export interface MitreTechniqueCoverage extends MitreTechnique {
+  count?: number;
+  rule_count?: number;
+}
+
 export interface TechniquesCoverageResponse {
-  techniques: MitreTechnique[];
+  techniques: MitreTechniqueCoverage[]; 
   total: number;
   covered: number;
   coverage_percentage: number;

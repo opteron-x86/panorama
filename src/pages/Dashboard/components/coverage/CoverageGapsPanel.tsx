@@ -16,7 +16,7 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
 import { Card, ErrorDisplay } from '@/components/common';
 import { useMitreCoverageQuery } from '@/api/queries';
-import { MitreTechnique } from '@/api/types';
+import { MitreTechnique, MitreTechniqueCoverage } from '@/api/types';
 import { CoverageGapsPanelProps } from './CoverageGapsPanel.types';
 
 export const CoverageGapsPanel: React.FC<CoverageGapsPanelProps> = ({ 

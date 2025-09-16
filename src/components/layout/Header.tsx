@@ -213,7 +213,7 @@ const Header: React.FC<HeaderProps> = ({
                   <Box sx={{ width: '100%' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                       <Typography variant="body2" fontWeight="500" noWrap>
-                        {rule.title || rule.name}
+                        {rule.title}
                       </Typography>
                       <Chip
                         label={rule.rule_source}
@@ -221,7 +221,7 @@ const Header: React.FC<HeaderProps> = ({
                         sx={{
                           height: 18,
                           fontSize: '0.7rem',
-                          backgroundColor: formatRuleSource(rule.rule_source?.name || 'default'),
+                          backgroundColor: formatRuleSource(rule.rule_source || 'default'),
                           color: '#fff',
                         }}
                       />

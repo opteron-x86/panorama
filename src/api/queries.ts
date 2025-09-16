@@ -7,7 +7,6 @@ import {
   UseQueryOptions, 
   UseMutationOptions,
   keepPreviousData,
-  UseQueryResult
 } from '@tanstack/react-query';
 
 import {
@@ -55,7 +54,7 @@ import {
   MitreMatrixData,
   MitreTechnique,
   MitreTactic,
-  DashboardStats,
+  DashboardResponse,
   TrendData,
   ExportOptions,
   ExportResponse,
