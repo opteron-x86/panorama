@@ -1,4 +1,5 @@
-import { Rule, RuleDetail } from './types';
+// src/api/utils.ts
+import { Rule, RuleDetail, RuleFilters } from './types';
 
 export function isRuleDetail(rule: Rule | RuleDetail): rule is RuleDetail {
   return 'rule_content' in rule;
@@ -47,19 +48,19 @@ export function buildFilterChips(filters: RuleFilters): Array<{ key: string; lab
   }
   
   if (filters.severities?.length) {
-    filters.severities.forEach(severity => {
+    filters.severities.forEach((severity: string) => {
       chips.push({ key: 'severity', label: severity, value: severity });
     });
   }
   
   if (filters.rule_types?.length) {
-    filters.rule_types.forEach(type => {
+    filters.rule_types.forEach((type: string) => {
       chips.push({ key: 'rule_type', label: type, value: type });
     });
   }
   
   if (filters.tags?.length) {
-    filters.tags.forEach(tag => {
+    filters.tags.forEach((tag: string) => {
       chips.push({ key: 'tag', label: tag, value: tag });
     });
   }

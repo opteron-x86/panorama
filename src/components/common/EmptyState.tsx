@@ -1,52 +1,23 @@
 // src/components/common/EmptyState.tsx
-
 import React, { ReactNode } from 'react';
 import { Box, Typography, Button, useTheme } from '@mui/material';
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
 interface EmptyStateProps {
-  /**
-   * Title to display
-   */
   title?: string;
-  
-  /**
-   * Description message
-   */
+  message?: string; // Alternative to description
   description?: string;
-  
-  /**
-   * Custom icon to display
-   */
   icon?: ReactNode;
-  
-  /**
-   * Action button text
-   */
   actionText?: string;
-  
-  /**
-   * Callback for action button
-   */
   onAction?: () => void;
-  
-  /**
-   * Type of empty state
-   */
   type?: 'noResults' | 'noData' | 'custom';
-  
-  /**
-   * Height of the empty state container
-   */
   height?: string | number;
 }
 
-/**
- * A reusable empty state component
- */
 const EmptyState: React.FC<EmptyStateProps> = ({
   title,
+  message,
   description,
   icon,
   actionText,
@@ -56,7 +27,8 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   const theme = useTheme();
   
-  // Default content based on type
+  const displayDescription = message || description;
+  
   let defaultTitle = '';
   let defaultDescription = '';
   let defaultIcon: ReactNode = null;
@@ -73,17 +45,14 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       defaultTitle = 'No data available';
       defaultDescription = 'There are no items to display yet.';
       defaultIcon = <AddCircleOutlineIcon sx={{ fontSize: 64, color: 'text.secondary' }} />;
-      defaultActionText = 'Add new';
+      defaultActionText = 'Add item';
       break;
     default:
-      break;
+      defaultTitle = title || '';
+      defaultDescription = displayDescription || '';
+      defaultIcon = icon || null;
+      defaultActionText = actionText || '';
   }
-  
-  // Use provided props or defaults
-  const displayTitle = title || defaultTitle;
-  const displayDescription = description || defaultDescription;
-  const displayIcon = icon || defaultIcon;
-  const displayActionText = actionText || defaultActionText;
   
   return (
     <Box
@@ -92,44 +61,28 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        height,
+        minHeight: height,
         p: 3,
         textAlign: 'center',
       }}
     >
-      {displayIcon && (
-        <Box sx={{ mb: 2, opacity: 0.8 }}>
-          {displayIcon}
-        </Box>
-      )}
+      {icon || defaultIcon}
       
-      {displayTitle && (
-        <Typography
-          variant="h6"
-          color="text.primary"
-          gutterBottom
-        >
-          {displayTitle}
+      {(title || defaultTitle) && (
+        <Typography variant="h6" sx={{ mt: 2, color: 'text.secondary' }}>
+          {title || defaultTitle}
         </Typography>
       )}
       
-      {displayDescription && (
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ maxWidth: 400, mb: 3 }}
-        >
-          {displayDescription}
+      {(displayDescription || defaultDescription) && (
+        <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+          {displayDescription || defaultDescription}
         </Typography>
       )}
       
-      {displayActionText && onAction && (
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={onAction}
-        >
-          {displayActionText}
+      {onAction && (actionText || defaultActionText) && (
+        <Button variant="outlined" onClick={onAction} sx={{ mt: 2 }}>
+          {actionText || defaultActionText}
         </Button>
       )}
     </Box>

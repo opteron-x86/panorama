@@ -6,10 +6,12 @@ import {
   GridRenderCellParams,
   GridPaginationModel,
   GridRowParams,
+  GridSortModel,
 } from '@mui/x-data-grid';
 import { Chip, Box } from '@mui/material';
 import { Rule } from '@/api/types';
 import { formatDate, getSeverityColor } from '@/api/utils';
+import { useFilterStore } from '@/store/filterStore';
 
 interface RulesTableProps {
   rules: Rule[];
@@ -32,17 +34,37 @@ export function RulesTable({
   onRuleSelect,
   loading,
 }: RulesTableProps) {
+  const { sortBy, sortDir, setSorting } = useFilterStore();
+  
+  // Map backend field names to DataGrid sort model
+  const sortModel: GridSortModel = sortBy ? [{
+    field: sortBy,
+    sort: sortDir || 'desc'
+  }] : [];
+
+  const handleSortModelChange = (model: GridSortModel) => {
+    if (model.length > 0) {
+      const { field, sort } = model[0];
+      setSorting(field, sort as 'asc' | 'desc');
+    } else {
+      // Default sorting when cleared
+      setSorting('updated_date', 'desc');
+    }
+  };
+
   const columns: GridColDef<Rule>[] = [
     {
       field: 'name',
       headerName: 'Name',
       flex: 2,
       minWidth: 250,
+      sortable: true,
     },
     {
       field: 'severity',
       headerName: 'Severity',
       width: 100,
+      sortable: true,
       renderCell: (params) => (
         <Chip
           label={params.value}
@@ -59,16 +81,19 @@ export function RulesTable({
       field: 'rule_type',
       headerName: 'Type',
       width: 120,
+      sortable: true,
     },
     {
       field: 'source',
       headerName: 'Source',
       width: 120,
+      sortable: false, // Backend doesn't support sorting by source
     },
     {
       field: 'mitre_techniques',
       headerName: 'MITRE',
       width: 180,
+      sortable: false, // Complex field, not sortable
       renderCell: (params: GridRenderCellParams<Rule, string[]>) => {
         if (!params.value || params.value.length === 0) return '-';
         return (
@@ -87,12 +112,21 @@ export function RulesTable({
       field: 'updated_date',
       headerName: 'Last Updated',
       width: 140,
-      valueFormatter: (params) => formatDate(params.value),
+      sortable: true,
+      valueFormatter: (params: any) => formatDate(params.value),
+    },
+    {
+      field: 'created_date',
+      headerName: 'Created',
+      width: 140,
+      sortable: true,
+      valueFormatter: (params: any) => formatDate(params.value),
     },
     {
       field: 'is_active',
       headerName: 'Status',
       width: 90,
+      sortable: false,
       renderCell: (params) => (
         <Chip
           label={params.value ? 'Active' : 'Inactive'}
@@ -111,6 +145,8 @@ export function RulesTable({
       getRowId={(row) => row.rule_id}
       rowCount={total}
       loading={loading}
+      
+      // Pagination configuration
       pageSizeOptions={[10, 25, 50, 100]}
       paginationModel={{
         page: page - 1,
@@ -120,11 +156,22 @@ export function RulesTable({
         if (model.page !== page - 1) onPageChange(model.page + 1);
         if (model.pageSize !== pageSize) onPageSizeChange(model.pageSize);
       }}
+      paginationMode="server"
+      
+      // Sorting configuration - server-side sorting
+      sortingMode="server"
+      sortModel={sortModel}
+      onSortModelChange={handleSortModelChange}
+      
+      // Row interaction
       onRowClick={(params: GridRowParams<Rule>) => {
         onRuleSelect?.(params.row.rule_id);
       }}
-      paginationMode="server"
       disableRowSelectionOnClick
+      disableColumnSelector
+      hideFooterSelectedRowCount
+      
+      // Styling
       sx={{
         border: 'none',
         '& .MuiDataGrid-cell': {
@@ -135,6 +182,18 @@ export function RulesTable({
         },
         '& .MuiDataGrid-row:hover': {
           bgcolor: 'action.hover',
+        },
+        '& .MuiDataGrid-row.Mui-selected': {
+          bgcolor: 'transparent',
+        },
+        '& .MuiDataGrid-row.Mui-selected:hover': {
+          bgcolor: 'action.hover',
+        },
+        '& .MuiDataGrid-cell:focus': {
+          outline: 'none',
+        },
+        '& .MuiDataGrid-cell:focus-within': {
+          outline: 'none',
         },
         '& .MuiDataGrid-columnHeaders': {
           bgcolor: 'background.paper',

@@ -1,4 +1,3 @@
 // src/hooks/index.ts
-export { useUrlState } from './useUrlState';
-export { useRulesPage } from './useRulesPage';
+export { useRules } from './useRules';
 export { useResponsive } from './ui/useResponsive';

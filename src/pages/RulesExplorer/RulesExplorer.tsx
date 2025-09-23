@@ -18,8 +18,8 @@ export default function RulesExplorer() {
   }
   
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Paper sx={{ p: 2, mb: 2 }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', pt: 2 }}>
+      <Paper sx={{ p: 2, mb: 2, mx: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="h5">Rules Explorer</Typography>
           <ToggleButtonGroup
@@ -40,7 +40,7 @@ export default function RulesExplorer() {
         <RuleFilterBar />
       </Paper>
       
-      <Box sx={{ flex: 1, position: 'relative' }}>
+      <Box sx={{ flex: 1, position: 'relative', px: 2 }}>
         {isLoading ? (
           <LoadingIndicator />
         ) : viewMode === 'list' ? (

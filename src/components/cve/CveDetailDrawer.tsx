@@ -41,139 +41,108 @@ interface CveDetailDrawerProps {
 }
 
 export function CveDetailDrawer({ cveId, open, onClose }: CveDetailDrawerProps) {
-  const { data: cve, isLoading, error } = useCveQuery(cveId);
+  const { data: cve, isLoading, error } = useCveQuery(open ? cveId : undefined);
   const [tabValue, setTabValue] = useState(0);
   
-  // Fetch rules that reference this CVE
+  // Fetch rules that reference this CVE - pass enabled in options spread
   const rulesQuery = useRulesQuery(
     { offset: 0, limit: 100 },
-    { cve_ids: [cveId] },
-    { enabled: open && !!cveId }
+    open && !!cveId ? { cve_ids: [cveId] } : {}
   );
 
-  const handleCopyCveId = () => {
-    navigator.clipboard.writeText(cveId);
-    toast.success('CVE ID copied');
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard');
   };
 
   return (
-    <Drawer 
-      anchor="right" 
-      open={open} 
+    <Drawer
+      anchor="right"
+      open={open}
       onClose={onClose}
-      PaperProps={{
-        sx: { width: { xs: '100%', md: 700 } }
+      sx={{
+        '& .MuiDrawer-paper': {
+          width: { xs: '100%', sm: 600 },
+          maxWidth: '100%',
+        },
       }}
     >
       <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <Box sx={{ flex: 1, mr: 2 }}>
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6">{cve?.cve_id || 'Loading...'}</Typography>
+            <Stack direction="row" spacing={1}>
               {cve && (
-                <>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <Typography variant="h5">
-                      {cve.cve_id}
-                    </Typography>
-                    <IconButton size="small" onClick={handleCopyCveId}>
-                      <ContentCopyIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <Stack direction="row" spacing={1}>
-                    <Chip
-                      label={cve.severity}
-                      size="small"
-                      sx={{
-                        bgcolor: getSeverityColor(cve.severity),
-                        color: 'white',
-                        fontWeight: 500,
-                      }}
-                    />
-                    {cve.cvss_v3_score && (
-                      <Chip 
-                        label={`CVSS v3: ${cve.cvss_v3_score.toFixed(1)}`}
-                        size="small"
-                      />
-                    )}
-                    {cve.cvss_score && !cve.cvss_v3_score && (
-                      <Chip 
-                        label={`CVSS: ${cve.cvss_score.toFixed(1)}`}
-                        size="small"
-                      />
-                    )}
-                  </Stack>
-                </>
+                <IconButton onClick={() => handleCopy(cve.cve_id)} size="small">
+                  <ContentCopyIcon fontSize="small" />
+                </IconButton>
               )}
-            </Box>
-            <IconButton onClick={onClose}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
+              <IconButton onClick={onClose}>
+                <CloseIcon />
+              </IconButton>
+            </Stack>
+          </Stack>
+          
+          {cve && (
+            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+              <Chip 
+                label={cve.severity}
+                size="small"
+                sx={{
+                  bgcolor: getSeverityColor(cve.severity),
+                  color: 'white',
+                  fontWeight: 500,
+                }}
+              />
+              {cve.cvss_v3_score && (
+                <Chip 
+                  label={`CVSS: ${cve.cvss_v3_score}`}
+                  size="small"
+                  variant="outlined"
+                />
+              )}
+            </Stack>
+          )}
         </Box>
 
-        {isLoading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
             <CircularProgress />
           </Box>
-        )}
-
-        {error && (
-          <Box sx={{ p: 3 }}>
-            <Alert severity="error">Failed to load CVE details</Alert>
-          </Box>
-        )}
-
-        {cve && (
+        ) : error ? (
+          <Alert severity="error" sx={{ m: 2 }}>
+            Failed to load CVE details
+          </Alert>
+        ) : cve ? (
           <>
-            <Tabs 
-              value={tabValue} 
-              onChange={(_, v) => setTabValue(v)}
-              sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}
-            >
+            <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ px: 2 }}>
               <Tab label="Overview" />
-              <Tab label={`Linked Rules (${rulesQuery.data?.total || 0})`} />
+              <Tab label={`Rules (${rulesQuery.data?.total || 0})`} />
               <Tab label="Technical Details" />
             </Tabs>
 
-            <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+            <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
               <TabPanel value={tabValue} index={0}>
                 <Stack spacing={3}>
                   <Box>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    <Typography variant="subtitle2" color="text.secondary">
                       Description
                     </Typography>
-                    <Typography>{cve.description}</Typography>
-                  </Box>
-
-                  <Box>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Severity Assessment
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      {cve.description}
                     </Typography>
-                    <Stack direction="row" spacing={2}>
-                      <Chip
-                        label={cve.severity.toUpperCase()}
-                        sx={{
-                          bgcolor: getSeverityColor(cve.severity),
-                          color: 'white',
-                        }}
-                      />
-                      {cve.cvss_v3_score && (
-                        <Typography>CVSS v3: {cve.cvss_v3_score.toFixed(1)}</Typography>
-                      )}
-                      {cve.cvss_score && (
-                        <Typography>CVSS: {cve.cvss_score.toFixed(1)}</Typography>
-                      )}
-                    </Stack>
                   </Box>
 
                   <Box>
                     <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                      Timeline
+                      Dates
                     </Typography>
                     <Stack spacing={1}>
-                      <Typography variant="body2">
-                        Published: {formatDate(cve.published_date)}
-                      </Typography>
+                      {cve.published_date && (
+                        <Typography variant="body2">
+                          Published: {formatDate(cve.published_date)}
+                        </Typography>
+                      )}
                       {cve.modified_date && (
                         <Typography variant="body2">
                           Modified: {formatDate(cve.modified_date)}
@@ -182,12 +151,12 @@ export function CveDetailDrawer({ cveId, open, onClose }: CveDetailDrawerProps) 
                     </Stack>
                   </Box>
 
-                  {cve.cwe_ids && cve.cwe_ids.length > 0 && (
+                  {cve.cwe_ids?.length > 0 && (
                     <Box>
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Weakness Classification
+                      <Typography variant="subtitle2" color="text.secondary">
+                        CWE References
                       </Typography>
-                      <Stack direction="row" spacing={1}>
+                      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
                         {cve.cwe_ids.map(cweId => (
                           <Chip key={cweId} label={cweId} size="small" variant="outlined" />
                         ))}
@@ -273,8 +242,10 @@ export function CveDetailDrawer({ cveId, open, onClose }: CveDetailDrawerProps) 
               </TabPanel>
             </Box>
           </>
-        )}
+        ) : null}
       </Box>
     </Drawer>
   );
 }
+
+export default CveDetailDrawer;

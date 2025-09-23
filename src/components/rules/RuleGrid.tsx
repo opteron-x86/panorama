@@ -1,6 +1,7 @@
 // src/components/rules/RuleGrid.tsx
 import React from 'react';
-import { Grid, Box } from '@mui/material';
+import { Box } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import { Rule } from '@/api/types';
 import { RuleCard } from './RuleCard';
 import { EmptyState, LoadingIndicator } from '@/components/common';
@@ -24,7 +25,7 @@ export function RuleGrid({ rules, onRuleSelect, loading }: RuleGridProps) {
     <Box sx={{ p: 2 }}>
       <Grid container spacing={2}>
         {rules.map(rule => (
-          <Grid item key={rule.rule_id} xs={12} sm={6} md={4} lg={3}>
+          <Grid key={rule.rule_id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
             <RuleCard
               rule={rule}
               onClick={() => onRuleSelect?.(rule.rule_id)}

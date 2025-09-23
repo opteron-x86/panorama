@@ -1,28 +1,26 @@
 // src/hooks/useRules.ts
-import { useMemo } from 'react';
-import { useRulesQuery } from '@/api/queries';
 import { useFilterStore } from '@/store/filterStore';
+import { useRulesQuery } from '@/api/queries';
 import { pageToOffset } from '@/api/pagination';
 
 export function useRules() {
-  const { filters, page, pageSize } = useFilterStore();
+  const { filters, page, pageSize, sortBy, sortDir } = useFilterStore();
   
-  const pagination = useMemo(() => 
-    pageToOffset(page, pageSize), [page, pageSize]
-  );
+  const pagination = pageToOffset(page, pageSize);
   
-  const query = useRulesQuery(pagination, filters, {
-    keepPreviousData: true,
-  });
+  // Include sorting in filters
+  const filtersWithSorting = {
+    ...filters,
+    sort_by: sortBy,
+    sort_dir: sortDir
+  };
   
-  const totalPages = query.data 
-    ? Math.ceil(query.data.total / pageSize) 
-    : 0;
+  const query = useRulesQuery(pagination, filtersWithSorting);
   
   return {
-    rules: query.data?.rules || [],
-    total: query.data?.total || 0,
-    totalPages,
+    rules: query.data?.rules ?? [],
+    total: query.data?.total ?? 0,
+    totalPages: Math.ceil((query.data?.total ?? 0) / pageSize),
     isLoading: query.isLoading,
     isFetching: query.isFetching,
     error: query.error,

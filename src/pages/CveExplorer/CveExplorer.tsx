@@ -106,8 +106,8 @@ export default function CveExplorer() {
   ];
   
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Paper sx={{ p: 3, mb: 3 }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', pt: 2 }}>
+      <Paper sx={{ p: 2, mb: 2, mx: 2 }}>
         <Typography variant="h5" gutterBottom>
           CVE Database
         </Typography>
@@ -162,7 +162,7 @@ export default function CveExplorer() {
         </Stack>
       </Paper>
       
-      <Paper sx={{ flex: 1, display: 'flex' }}>
+      <Paper sx={{ flex: 1, display: 'flex', mx: 2 }}>
         <DataGrid
           rows={cvesQuery.data?.cves || []}
           columns={columns}

@@ -1,7 +1,6 @@
 // src/components/common/ErrorDisplay.tsx
-
 import React from 'react';
-import { Box, Typography, Button, Paper, useTheme } from '@mui/material';
+import { Box, Typography, Button, Paper, useTheme, alpha } from '@mui/material';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
@@ -9,20 +8,35 @@ export interface ErrorDisplayProps {
   error?: Error | string | null;
   title?: string;
   message?: string;
+  details?: string;
+  retry?: boolean;
   onRetry?: () => void;
   compact?: boolean;
 }
 
-/**
- * A reusable error display component
- */
 const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
+  error,
+  title = 'Error',
   message = 'An error occurred',
   details,
   retry = true,
   onRetry,
+  compact = false,
 }) => {
   const theme = useTheme();
+  
+  // Extract error message from error object if provided
+  const errorMessage = error instanceof Error ? error.message : error || message;
+  const errorDetails = error instanceof Error && error.stack ? error.stack : details;
+  
+  if (compact) {
+    return (
+      <Typography color="error" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <ErrorOutlineIcon fontSize="small" />
+        {errorMessage}
+      </Typography>
+    );
+  }
   
   return (
     <Paper
@@ -35,24 +49,21 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
         justifyContent: 'center',
         textAlign: 'center',
         borderRadius: 2,
-        bgcolor: 'error.lighter',
+        bgcolor: alpha(theme.palette.error.main, 0.05),
         border: `1px solid ${theme.palette.error.light}`,
       }}
     >
-      <ErrorOutlineIcon
-        color="error"
-        sx={{ fontSize: 48, mb: 2 }}
-      />
+      <ErrorOutlineIcon color="error" sx={{ fontSize: 48, mb: 2 }} />
       
-      <Typography
-        variant="h6"
-        color="error"
-        gutterBottom
-      >
-        {message}
+      <Typography variant="h6" color="error" gutterBottom>
+        {title}
       </Typography>
       
-      {details && (
+      <Typography variant="body1" color="text.secondary">
+        {errorMessage}
+      </Typography>
+      
+      {errorDetails && (
         <Typography
           variant="body2"
           color="text.secondary"
@@ -66,7 +77,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
             fontFamily: 'monospace',
           }}
         >
-          {details}
+          {errorDetails}
         </Typography>
       )}
       
