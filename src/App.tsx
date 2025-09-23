@@ -1,145 +1,110 @@
-// src/App.tsx
-import { useState, useEffect, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Box, ThemeProvider, CssBaseline, Button, Typography, CircularProgress } from '@mui/material';
+// src/App.tsx (updated to use CustomThemeProvider)
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { CssBaseline, Box, Typography, Button, CircularProgress } from '@mui/material';
 import { Toaster } from 'react-hot-toast';
-import { lightTheme, darkTheme } from '@/theme';
-import AppRoutes from '@/routes';
-import { SidebarProvider } from '@/contexts/SidebarContext';
-import { useAuth } from "react-oidc-context";
+import { useAuth } from 'react-oidc-context';
 
-const LoggedOut = lazy(() => import('@/pages/LoggedOut'));
+import { CustomThemeProvider } from './contexts/ThemeContext';
+import AppLayout from './components/layout/AppLayout';
+import RulesExplorer from './pages/RulesExplorer';
+import AttackMatrix from './pages/AttackMatrix';
+import CveExplorer from './pages/CveExplorer';
+import NotFound from './pages/NotFound';
 
-const LoadingFallback = () => (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
-    </Box>
-);
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      retry: (failureCount, error: any) => {
+        if (error?.status >= 400 && error?.status < 500) return false;
+        return failureCount < 2;
+      },
+    },
+  },
+});
 
-const SignInPage = () => {
-    const auth = useAuth();
-    return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: 'background.default' }}>
-            <Box sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2,
-              p: { xs: 3, sm: 5 },
-              bgcolor: 'background.paper',
-              borderRadius: 2,
-              boxShadow: 3,
-              maxWidth: 'sm',
-              width: '90%',
-            }}>
-              <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-                Panorama
-              </Typography>
-              <Box
-                component="img"
-                src="/saint.svg"
-                alt="SAINT Logo"
-                sx={{
-                  width: { xs: 200, sm: 250, md: 300 },
-                  height: { xs: 200, sm: 250, md: 300 },
-                  transition: 'transform 0.3s ease-in-out',
-                }}
-              />
-              <Button
-                variant="contained"
-                size="large"
-                onClick={() => auth.signinRedirect()}
-                sx={{ mt: 2, minWidth: '120px' }}
-              >
-                Sign In
-              </Button>
-            </Box>
-        </Box>
-    );
-};
-
-function App() {
+function AuthenticatedApp() {
   const auth = useAuth();
 
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const savedTheme = localStorage.getItem('theme-mode');
-    if (savedTheme) {
-      return savedTheme === 'dark';
-    }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('theme-mode', isDarkMode ? 'dark' : 'light');
-    
-    // Store auth tokens when authenticated
+  React.useEffect(() => {
     if (auth.isAuthenticated && auth.user) {
       const idToken = auth.user.id_token;
       const accessToken = auth.user.access_token;
       
-      if (idToken) {
-        sessionStorage.setItem('id_token', idToken);
-      }
-      if (accessToken) {
-        sessionStorage.setItem('access_token', accessToken);
-      }
+      if (idToken) sessionStorage.setItem('id_token', idToken);
+      if (accessToken) sessionStorage.setItem('access_token', accessToken);
     }
-  }, [isDarkMode, auth.isAuthenticated, auth.user]);
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
+  }, [auth.isAuthenticated, auth.user]);
 
   if (auth.isLoading) {
     return (
-      <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
-        <CssBaseline />
-        <LoadingFallback />
-      </ThemeProvider>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
     );
   }
 
-  if (auth.error) {
+  if (!auth.isAuthenticated) {
     return (
-      <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
-        <CssBaseline />
-        <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', bgcolor: 'background.default', p: 3 }}>
-          <Typography color="error" variant="h6">Authentication Error</Typography>
-          <Typography color="error" sx={{ mb: 2 }}>{auth.error.message}</Typography>
-          <Button variant="contained" onClick={() => auth.signinRedirect()}>Try Sign In Again</Button>
-        </Box>
-      </ThemeProvider>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        bgcolor: 'background.default',
+      }}>
+        <Typography variant="h3" sx={{ mb: 1, fontWeight: 600, color: 'primary.main' }}>
+          PANORAMA
+        </Typography>
+        <Typography variant="body1" sx={{ mb: 4, color: 'text.secondary' }}>
+          Security Rule Management Platform
+        </Typography>
+        <Button 
+          variant="contained" 
+          size="large" 
+          onClick={() => auth.signinRedirect()}
+          sx={{ px: 4 }}
+        >
+          Sign In
+        </Button>
+      </Box>
     );
   }
-  
+
   return (
-    <ThemeProvider theme={isDarkMode ? darkTheme : lightTheme}>
-      <CssBaseline />
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          success: { style: { background: '#28a745', color: '#ffffff' } },
-          error: { style: { background: '#dc3545', color: '#ffffff' } },
-        }}
-      />
-      <Router>
-        {auth.isAuthenticated ? (
-          <SidebarProvider>
-            <Box sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-              <AppRoutes toggleTheme={toggleTheme} isDarkMode={isDarkMode} />
-            </Box>
-          </SidebarProvider>
-        ) : (
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-              <Route path="/logged-out" element={<LoggedOut />} />
-              <Route path="*" element={<SignInPage />} />
-            </Routes>
-          </Suspense>
-        )}
-      </Router>
-    </ThemeProvider>
+    <Router>
+      <Routes>
+        <Route path="/" element={<AppLayout />}>
+          <Route index element={<Navigate to="/rules" replace />} />
+          <Route path="rules" element={<RulesExplorer />} />
+          <Route path="mitre" element={<AttackMatrix />} />
+          <Route path="cves" element={<CveExplorer />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    </Router>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <CustomThemeProvider>
+        <CssBaseline />
+        <AuthenticatedApp />
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            style: {
+              borderRadius: '4px',
+              fontSize: '14px',
+            },
+          }}
+        />
+      </CustomThemeProvider>
+    </QueryClientProvider>
+  );
+}

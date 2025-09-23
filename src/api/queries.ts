@@ -1,461 +1,134 @@
-// src/api/queries.ts
-
-import { 
-  useQuery, 
-  useMutation, 
-  useQueryClient, 
-  UseQueryOptions, 
-  UseMutationOptions,
-  keepPreviousData,
-} from '@tanstack/react-query';
-
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import {
-  // Core endpoints
   fetchRules,
   fetchRuleById,
-  fetchRuleStats,
-  fetchRuleEnrichmentStats,
-  exportRules,
-  
-  // MITRE endpoints
   fetchMitreMatrix,
-  fetchMitreCoverage,
   fetchMitreTechniques,
-  fetchMitreTactics,
-  
-  // CVE endpoints
   fetchCves,
   fetchCveById,
-  fetchCveStats,
-  
-  // Filter and search endpoints
-  fetchFilterOptions,
-  globalSearch,
-  
-  // Analytics endpoints
-  fetchDashboardData,
-  fetchTrendData,
-  
-  // Deprecation management endpoints
-  fetchDeprecationStatistics,
-  fetchAffectedRules,
-  checkRuleDeprecation,
-  updateDeprecatedMappings,
+  fetchFilters,
+  checkHealth,
 } from './endpoints';
-
 import {
-  FetchRulesResponse,
+  RulesResponse,
   RuleDetail,
-  FetchRuleStatsResponse,
-  PaginationParams,
   RuleFilters,
-  TechniquesCoverageResponse,
-  FilterOptionsResponse,
-  MitreMatrixData,
-  MitreTechnique,
-  MitreTactic,
-  DashboardResponse,
-  TrendData,
-  ExportOptions,
-  ExportResponse,
-  GlobalSearchResponse,
-  CveData,
-  CveStats,
-  DeprecationStatistics,
-  AffectedRulesResponse,
-  RuleDeprecationCheck,
-  UpdateMappingsOptions,
-  UpdateMappingsResponse,
+  Pagination,
+  MitreMatrixResponse,
+  MitreTechniquesResponse,
+  MitreFilters,
+  CvesResponse,
+  CveDetail,
+  CveFilters,
+  FiltersResponse,
 } from './types';
 
-// Define proper error type
-interface QueryError extends Error {
-  status?: number;
+// Query keys
+export const queryKeys = {
+  health: ['health'] as const,
+  rules: (pagination?: Partial<Pagination>, filters?: RuleFilters) => 
+    ['rules', pagination, filters] as const,
+  rule: (id: string) => ['rule', id] as const,
+  mitreMatrix: (platforms?: string[]) => ['mitreMatrix', platforms] as const,
+  mitreTechniques: (pagination?: Partial<Pagination>, filters?: MitreFilters) => 
+    ['mitreTechniques', pagination, filters] as const,
+  cves: (pagination?: Partial<Pagination>, filters?: CveFilters) => 
+    ['cves', pagination, filters] as const,
+  cve: (id: string) => ['cve', id] as const,
+  filters: ['filters'] as const,
+};
+
+// Health check
+export function useHealthQuery(options?: UseQueryOptions<{ status: string }, Error>) {
+  return useQuery({
+    queryKey: queryKeys.health,
+    queryFn: checkHealth,
+    staleTime: 60 * 1000,
+    ...options,
+  });
 }
 
-// --- QUERY KEYS ---
-export const queryKeys = {
-  // Rules
-  rules: (filters?: RuleFilters, pagination?: PaginationParams) => [
-    'rules',
-    filters ? JSON.stringify(filters) : 'no_filters',
-    pagination ? JSON.stringify(pagination) : 'no_pagination',
-  ],
-  ruleDetail: (id: string) => ['rule', id],
-  ruleStats: (filters?: RuleFilters) => [
-    'ruleStats',
-    filters ? JSON.stringify(filters) : 'no_filters',
-  ],
-  ruleEnrichmentStats: () => ['ruleEnrichmentStats'],
-  
-  // MITRE ATT&CK
-  mitreMatrix: () => ['mitreMatrix'],
-  mitreCoverage: (platform?: string | null, rulePlatform?: string | null) => [
-    'mitreCoverage',
-    platform ?? 'no_platform_filter',
-    rulePlatform ?? 'no_rule_platform_filter',
-  ],
-  mitreTechniques: (pagination?: PaginationParams, search?: string) => [
-    'mitreTechniques',
-    pagination ? JSON.stringify(pagination) : 'no_pagination',
-    search ?? 'no_search',
-  ],
-  mitreTactics: () => ['mitreTactics'],
-
-  // Deprecation management
-  deprecationStats: () => ['deprecation', 'stats'] as const,
-  deprecatedRules: () => ['deprecated', 'rules'] as const,
-  ruleDeprecationCheck: (ruleId: string) => ['rule', ruleId, 'deprecation'] as const,
-
-  // CVEs
-  cves: (pagination: PaginationParams, filters?: { severities?: string[]; with_rules_only?: boolean; query?: string }) => [
-    'cves',
-    JSON.stringify(pagination),
-    filters ? JSON.stringify(filters) : 'no_filters',
-  ],
-  cveDetail: (id: string) => ['cve', id],
-  cveStats: () => ['cveStats'],
-  
-  // Filters and search
-  filterOptions: () => ['filterOptions'],
-  globalSearch: (query: string, pagination?: PaginationParams, types?: string[]) => [
-    'globalSearch',
-    query,
-    pagination ? JSON.stringify(pagination) : 'no_pagination',
-    types ? JSON.stringify(types) : 'no_types',
-  ],
-  
-  // Analytics
-  dashboard: () => ['dashboard'],
-  trends: (startDate: string, endDate: string, granularity: string) => [
-    'trends',
-    startDate,
-    endDate,
-    granularity,
-  ],
-};
-
-// --- CORE RULES QUERY HOOKS ---
-
-export const useRulesQuery = (
-  pagination: PaginationParams,
+// Rules queries
+export function useRulesQuery(
+  pagination?: Partial<Pagination>,
   filters?: RuleFilters,
-  options?: UseQueryOptions<FetchRulesResponse, Error>
-) => {
-  return useQuery<FetchRulesResponse, Error>({
-    queryKey: queryKeys.rules(filters, pagination),
+  options?: UseQueryOptions<RulesResponse, Error>
+) {
+  return useQuery({
+    queryKey: queryKeys.rules(pagination, filters),
     queryFn: () => fetchRules(pagination, filters),
-    retry: (failureCount, error: QueryError) => {
-      if (error?.status && error.status >= 400 && error.status < 500) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-    placeholderData: keepPreviousData,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
     ...options,
   });
-};
+}
 
-export const useRuleQuery = (
-  id: string | null,
+export function useRuleQuery(
+  id: string | undefined,
   options?: UseQueryOptions<RuleDetail, Error>
-) => {
-  return useQuery<RuleDetail, Error>({
-    queryKey: queryKeys.ruleDetail(id!),
+) {
+  return useQuery({
+    queryKey: queryKeys.rule(id!),
     queryFn: () => fetchRuleById(id!),
     enabled: !!id,
-    retry: (failureCount, error: QueryError) => {
-      if (error?.status === 404) return false;
-      if (error?.status && error.status >= 400 && error.status < 500) return false;
-      return failureCount < 2;
-    },
-    staleTime: 10 * 60 * 1000,
     ...options,
   });
-};
+}
 
-export const useRuleStatsQuery = (
-  filters?: RuleFilters,
-  options?: UseQueryOptions<FetchRuleStatsResponse, Error>
-) => {
-  return useQuery<FetchRuleStatsResponse, Error>({
-    queryKey: queryKeys.ruleStats(filters),
-    queryFn: () => fetchRuleStats(filters),
-    staleTime: 2 * 60 * 1000,
-    ...options,
-  });
-};
-
-export const useRuleEnrichmentStatsQuery = (
-  options?: UseQueryOptions<Record<string, unknown>, Error>
-) => {
-  return useQuery<Record<string, unknown>, Error>({
-    queryKey: queryKeys.ruleEnrichmentStats(),
-    queryFn: fetchRuleEnrichmentStats,
-    staleTime: 5 * 60 * 1000,
-    ...options,
-  });
-};
-
-// --- MITRE ATT&CK QUERY HOOKS ---
-
-export const useMitreMatrixQuery = (
-  options?: UseQueryOptions<MitreMatrixData, Error>
-) => {
-  return useQuery<MitreMatrixData, Error>({
-    queryKey: queryKeys.mitreMatrix(),
-    queryFn: fetchMitreMatrix,
+// MITRE queries
+export function useMitreMatrixQuery(
+  platforms?: string[],
+  options?: UseQueryOptions<MitreMatrixResponse, Error>
+) {
+  return useQuery({
+    queryKey: queryKeys.mitreMatrix(platforms),
+    queryFn: () => fetchMitreMatrix(platforms),
     staleTime: 30 * 60 * 1000,
     ...options,
   });
-};
+}
 
-export const useMitreCoverageQuery = (
-  platform?: string | null,
-  rulePlatform?: string | null,
-  options?: UseQueryOptions<TechniquesCoverageResponse, Error>
-) => {
-  return useQuery<TechniquesCoverageResponse, Error>({
-    queryKey: queryKeys.mitreCoverage(platform, rulePlatform),
-    queryFn: () => fetchMitreCoverage(),
-    staleTime: 10 * 60 * 1000,
+export function useMitreTechniquesQuery(
+  pagination?: Partial<Pagination>,
+  filters?: MitreFilters,
+  options?: UseQueryOptions<MitreTechniquesResponse, Error>
+) {
+  return useQuery({
+    queryKey: queryKeys.mitreTechniques(pagination, filters),
+    queryFn: () => fetchMitreTechniques(pagination, filters),
     ...options,
   });
-};
+}
 
-export const useMitreTechniquesQuery = (
-  pagination?: PaginationParams,
-  search?: string,
-  options?: UseQueryOptions<{ techniques: MitreTechnique[]; total: number }, Error>
-) => {
-  return useQuery<{ techniques: MitreTechnique[]; total: number }, Error>({
-    queryKey: queryKeys.mitreTechniques(pagination, search),
-    queryFn: () => fetchMitreTechniques(pagination, search),
-    placeholderData: keepPreviousData,
-    staleTime: 15 * 60 * 1000,
-    ...options,
-  });
-};
-
-export const useMitreTacticsQuery = (
-  options?: UseQueryOptions<MitreTactic[], Error>
-) => {
-  return useQuery<MitreTactic[], Error>({
-    queryKey: queryKeys.mitreTactics(),
-    queryFn: fetchMitreTactics, 
-    staleTime: 30 * 60 * 1000,
-    ...options,
-  });
-};
-
-// --- DEPRECATION QUERY HOOKS ---
-
-export const useDeprecationStatsQuery = (
-  options?: UseQueryOptions<DeprecationStatistics, Error>
-) => {
-  return useQuery<DeprecationStatistics, Error>({
-    queryKey: queryKeys.deprecationStats(),
-    queryFn: fetchDeprecationStatistics,
-    staleTime: 30 * 60 * 1000,
-    ...options,
-  });
-};
-
-export const useAffectedRulesQuery = (
-  techniqueId?: string,
-  options?: UseQueryOptions<AffectedRulesResponse, Error>
-) => {
-  return useQuery<AffectedRulesResponse, Error>({
-    queryKey: queryKeys.deprecatedRules(),
-    queryFn: () => fetchAffectedRules(techniqueId),
-    enabled: !!techniqueId || techniqueId === undefined,
-    staleTime: 10 * 60 * 1000,
-    ...options,
-  });
-};
-
-export const useRuleDeprecationCheckQuery = (
-  ruleId: string | null,
-  options?: UseQueryOptions<RuleDeprecationCheck, Error>
-) => {
-  return useQuery<RuleDeprecationCheck, Error>({
-    queryKey: queryKeys.ruleDeprecationCheck(ruleId!),
-    queryFn: () => checkRuleDeprecation(ruleId!),
-    enabled: !!ruleId,
-    staleTime: 10 * 60 * 1000,
-    ...options,
-  });
-};
-
-// --- CVE QUERY HOOKS ---
-
-export const useCvesQuery = (
-  pagination: PaginationParams,
-  filters?: { severities?: string[]; with_rules_only?: boolean; query?: string },
-  options?: UseQueryOptions<{ cves: CveData[]; total: number }, Error>
-) => {
-  return useQuery<{ cves: CveData[]; total: number }, Error>({
+// CVE queries
+export function useCvesQuery(
+  pagination?: Partial<Pagination>,
+  filters?: CveFilters,
+  options?: UseQueryOptions<CvesResponse, Error>
+) {
+  return useQuery({
     queryKey: queryKeys.cves(pagination, filters),
     queryFn: () => fetchCves(pagination, filters),
-    placeholderData: keepPreviousData,
-    staleTime: 10 * 60 * 1000,
     ...options,
   });
-};
+}
 
-export const useCveQuery = (
-  id: string,
-  options?: UseQueryOptions<CveData, Error>
-) => {
-  return useQuery<CveData, Error>({
-    queryKey: queryKeys.cveDetail(id),
-    queryFn: () => fetchCveById(id),
+export function useCveQuery(
+  id: string | undefined,
+  options?: UseQueryOptions<CveDetail, Error>
+) {
+  return useQuery({
+    queryKey: queryKeys.cve(id!),
+    queryFn: () => fetchCveById(id!),
     enabled: !!id,
-    staleTime: 30 * 60 * 1000,
     ...options,
   });
-};
+}
 
-export const useCveStatsQuery = (
-  options?: UseQueryOptions<CveStats, Error>
-) => {
-  return useQuery<CveStats, Error>({
-    queryKey: queryKeys.cveStats(),
-    queryFn: fetchCveStats,
-    staleTime: 10 * 60 * 1000,
+// Filters query
+export function useFiltersQuery(options?: UseQueryOptions<FiltersResponse, Error>) {
+  return useQuery({
+    queryKey: queryKeys.filters,
+    queryFn: fetchFilters,
+    staleTime: 60 * 60 * 1000, // Cache for 1 hour
     ...options,
   });
-};
-
-// --- FILTER AND SEARCH QUERY HOOKS ---
-
-export const useFilterOptionsQuery = (
-  options?: UseQueryOptions<FilterOptionsResponse, Error>
-) => {
-  return useQuery<FilterOptionsResponse, Error>({
-    queryKey: queryKeys.filterOptions(),
-    queryFn: fetchFilterOptions,
-    staleTime: 30 * 60 * 1000,
-    ...options,
-  });
-};
-
-export const useGlobalSearchQuery = (
-  query: string,
-  pagination?: PaginationParams,
-  types?: string[],
-  options?: UseQueryOptions<GlobalSearchResponse, Error>
-) => {
-  return useQuery<GlobalSearchResponse, Error>({
-    queryKey: queryKeys.globalSearch(query, pagination, types),
-    queryFn: () => globalSearch(query, pagination, types),
-    enabled: query.length >= 2,
-    placeholderData: keepPreviousData,
-    staleTime: 2 * 60 * 1000,
-    ...options,
-  });
-};
-
-// --- ANALYTICS QUERY HOOKS ---
-
-export const useDashboardQuery = (
-  options?: UseQueryOptions<DashboardResponse, Error>
-) => {
-  return useQuery<DashboardResponse, Error>({
-    queryKey: ['dashboard'],
-    queryFn: fetchDashboardData,
-    staleTime: 60 * 1000, // 1 minute cache
-    ...options,
-  });
-};
-export const useTrendAnalysisQuery = (
-  startDate: string,
-  endDate: string,
-  granularity: 'day' | 'week' | 'month' = 'day',
-  options?: UseQueryOptions<TrendData[], Error>
-) => {
-  return useQuery<TrendData[], Error>({
-    queryKey: queryKeys.trends(startDate, endDate, granularity),
-    queryFn: () => fetchTrendData(startDate, endDate, granularity),
-    staleTime: 15 * 60 * 1000,
-    ...options,
-  });
-};
-
-// --- MUTATION HOOKS ---
-
-export const useExportRulesMutation = (
-  options?: UseMutationOptions<ExportResponse, Error, ExportOptions>
-) => {
-  return useMutation<ExportResponse, Error, ExportOptions>({
-    mutationFn: exportRules,
-    ...options,
-  });
-};
-
-export const useUpdateDeprecatedMappingsMutation = (
-  options?: UseMutationOptions<UpdateMappingsResponse, Error, UpdateMappingsOptions>
-) => {
-  const queryClient = useQueryClient();
-  
-  return useMutation<UpdateMappingsResponse, Error, UpdateMappingsOptions>({
-    mutationFn: updateDeprecatedMappings,
-    onSuccess: (data, variables) => {
-      // Invalidate relevant queries after successful update
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.deprecationStats(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.deprecatedRules(),
-      });
-      
-      // Invalidate specific rule queries if rule IDs were provided
-      if (variables.rule_ids?.length) {
-        variables.rule_ids.forEach(ruleId => {
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.ruleDetail(ruleId),
-          });
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.ruleDeprecationCheck(ruleId),
-          });
-        });
-      }
-      
-      // Invalidate all rules queries to reflect updates
-      queryClient.invalidateQueries({
-        queryKey: ['rules'],
-      });
-    },
-    ...options,
-  });
-};
-
-// --- HELPER HOOKS ---
-
-/**
- * Combined hook for rule detail with deprecation check
- */
-export const useRuleWithDeprecationCheck = (
-  ruleId: string | null,
-  options?: {
-    ruleOptions?: UseQueryOptions<RuleDetail, Error>;
-    deprecationOptions?: UseQueryOptions<RuleDeprecationCheck, Error>;
-  }
-) => {
-  const ruleQuery = useRuleQuery(ruleId, options?.ruleOptions);
-  const deprecationQuery = useRuleDeprecationCheckQuery(ruleId, options?.deprecationOptions);
-  
-  return {
-    rule: ruleQuery.data,
-    deprecation: deprecationQuery.data,
-    isLoading: ruleQuery.isLoading || deprecationQuery.isLoading,
-    isError: ruleQuery.isError || deprecationQuery.isError,
-    error: ruleQuery.error || deprecationQuery.error,
-  };
-};
-
-// Legacy aliases for backward compatibility
-export const useDeprecationStats = useDeprecationStatsQuery;
-export const useRuleDeprecationCheck = useRuleDeprecationCheckQuery;
+}
