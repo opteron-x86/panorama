@@ -15,6 +15,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import { useFilterStore } from '@/store/filterStore';
 import { useFiltersQuery } from '@/api/queries';
+import { MitreTechniquesDropdown } from './MitreTechniquesDropdown';
 
 export function RuleFilterBar() {
   const { filters, setFilters, clearFilters } = useFilterStore();
@@ -91,6 +92,15 @@ export function RuleFilterBar() {
             ))}
           </Select>
         </FormControl>
+        
+        {/* MITRE Techniques Dropdown */}
+        <MitreTechniquesDropdown
+          value={filters.mitre_techniques || []}
+          onChange={(techniques) => setFilters({ 
+            mitre_techniques: techniques.length > 0 ? techniques : undefined 
+          })}
+          size="small"
+        />
         
         {hasActiveFilters && (
           <Button
