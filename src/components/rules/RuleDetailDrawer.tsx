@@ -18,6 +18,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useRuleQuery } from '@/api/queries';
 import { getSeverityColor, formatDate } from '@/api/utils';
 import toast from 'react-hot-toast';
@@ -40,9 +41,19 @@ interface RuleDetailDrawerProps {
   ruleId: string;
   open: boolean;
   onClose: () => void;
+  // Optional context for when opened from CVE detail
+  cveContext?: {
+    cveId: string;
+    onBack: () => void;
+  };
 }
 
-export function RuleDetailDrawer({ ruleId, open, onClose }: RuleDetailDrawerProps) {
+export function RuleDetailDrawer({ 
+  ruleId, 
+  open, 
+  onClose,
+  cveContext 
+}: RuleDetailDrawerProps) {
   const { data: rule, isLoading, error } = useRuleQuery(ruleId);
   const [tabValue, setTabValue] = useState(0);
 
@@ -72,6 +83,17 @@ export function RuleDetailDrawer({ ruleId, open, onClose }: RuleDetailDrawerProp
       <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
+          {cveContext && (
+            <Box sx={{ mb: 2 }}>
+              <Button
+                startIcon={<ArrowBackIcon />}
+                onClick={cveContext.onBack}
+                size="small"
+              >
+                Back to {cveContext.cveId}
+              </Button>
+            </Box>
+          )}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <Box sx={{ flex: 1, mr: 2 }}>
               {rule && (
@@ -133,6 +155,7 @@ export function RuleDetailDrawer({ ruleId, open, onClose }: RuleDetailDrawerProp
             </Tabs>
 
             <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+              {/* Tab panels content remains the same as original */}
               <TabPanel value={tabValue} index={0}>
                 <Stack spacing={3}>
                   <Box>
