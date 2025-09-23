@@ -196,19 +196,10 @@ export function MitreTechniquesDropdown({
             <ListItemText
               primary={
                 <Box>
-                  <Typography 
-                    variant="body2" 
-                    component="span" 
-                    fontWeight="medium"
-                    sx={{ color: 'primary.main' }}
-                  >
+                  <Typography variant="body2" fontWeight="medium">
                     {technique.technique_id}
                   </Typography>
-                  <Typography 
-                    variant="body2" 
-                    component="span"
-                    sx={{ ml: 1 }}
-                  >
+                  <Typography variant="caption" color="text.secondary">
                     {technique.name}
                   </Typography>
                 </Box>
