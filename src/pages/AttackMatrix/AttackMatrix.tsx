@@ -18,6 +18,13 @@ import {
   Alert,
   Collapse,
   Divider,
+  useTheme,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  OutlinedInput,
+  SelectChangeEvent,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -29,6 +36,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   SubdirectoryArrowRight as SubtechniqueIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { useMitreMatrixQuery } from '@/api/queries';
 import { ErrorDisplay, LoadingIndicator } from '@/components/common';
@@ -53,6 +61,41 @@ interface GroupedTechnique {
     platforms?: string[];
   }>;
 }
+
+// MITRE ATT&CK kill chain order
+const TACTIC_ORDER = [
+  'reconnaissance',
+  'resource-development',
+  'initial-access',
+  'execution',
+  'persistence',
+  'privilege-escalation',
+  'defense-evasion',
+  'credential-access',
+  'discovery',
+  'lateral-movement',
+  'collection',
+  'command-and-control',
+  'exfiltration',
+  'impact'
+];
+
+// Available platforms 
+const AVAILABLE_PLATFORMS = [
+  'Enterprise',
+  'PRE',
+  'Windows',
+  'macOS',
+  'Linux',
+  'Cloud',
+  'Office Suite',
+  'Identity Provider',
+  'SaaS',
+  'IaaS',
+  'Network Devices',
+  'Containers',
+  'ESXi'
+];
 
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
@@ -102,6 +145,7 @@ function TechniqueCard({
   expanded: boolean;
   onToggleExpand: () => void;
 }) {
+  const theme = useTheme();
   const coverage = getCoverageInfo(technique.rule_count);
   const hasSubtechniques = technique.subtechniques.length > 0;
   
@@ -109,6 +153,13 @@ function TechniqueCard({
   const totalRuleCount = technique.rule_count + 
     technique.subtechniques.reduce((sum, sub) => sum + sub.rule_count, 0);
   const aggregateCoverage = getCoverageInfo(totalRuleCount);
+
+  const handleExpandClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasSubtechniques) {
+      onToggleExpand();
+    }
+  };
 
   return (
     <Paper
@@ -118,24 +169,36 @@ function TechniqueCard({
         borderColor: 'divider',
         borderRadius: 2,
         overflow: 'hidden',
-        bgcolor: totalRuleCount > 0 ? `${aggregateCoverage.color}.50` : 'background.paper',
+        bgcolor: theme.palette.mode === 'dark' 
+          ? totalRuleCount > 0 ? `${aggregateCoverage.color}.dark` : 'background.paper'
+          : totalRuleCount > 0 ? `${aggregateCoverage.color}.50` : 'background.paper',
       }}
     >
       <Box
         sx={{
           p: 2,
-          cursor: 'pointer',
+          cursor: hasSubtechniques ? 'default' : 'pointer',
           transition: 'all 0.2s',
           '&:hover': {
-            bgcolor: 'action.hover',
+            bgcolor: theme.palette.mode === 'dark' 
+              ? 'action.hover' 
+              : 'action.hover',
           },
         }}
-        onClick={() => hasSubtechniques ? onToggleExpand() : onClick(technique.technique_id)}
+        onClick={!hasSubtechniques ? () => onClick(technique.technique_id) : undefined}
       >
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Box flex={1}>
+          <Box 
+            flex={1}
+            onClick={hasSubtechniques ? () => onClick(technique.technique_id) : undefined}
+            sx={{ cursor: hasSubtechniques ? 'pointer' : 'default' }}
+          >
             <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-              <Typography variant="subtitle2" fontWeight="bold" color="primary">
+              <Typography 
+                variant="subtitle2" 
+                fontWeight="bold" 
+                color="primary"
+              >
                 {technique.technique_id}
               </Typography>
               <Chip
@@ -158,89 +221,78 @@ function TechniqueCard({
             <Typography variant="body2" color="text.primary">
               {technique.name}
             </Typography>
-            {technique.platforms && (
-              <Stack direction="row" spacing={0.5} mt={1}>
+            {technique.platforms && technique.platforms.length > 0 && (
+              <Stack direction="row" spacing={0.5} mt={1} flexWrap="wrap">
                 {technique.platforms.map((platform: string) => (
                   <Chip
                     key={platform}
                     label={platform}
                     size="small"
                     variant="outlined"
-                    sx={{ height: 20, fontSize: '0.7rem' }}
+                    sx={{ height: 20, fontSize: '0.7rem', mb: 0.5 }}
                   />
                 ))}
               </Stack>
             )}
           </Box>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <SecurityIcon color={aggregateCoverage.color} />
-            {hasSubtechniques && (
-              <IconButton size="small">
-                {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              </IconButton>
-            )}
-          </Stack>
+          {hasSubtechniques && (
+            <IconButton size="small" onClick={handleExpandClick}>
+              {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </IconButton>
+          )}
         </Stack>
       </Box>
-
-      {hasSubtechniques && (
-        <Collapse in={expanded}>
-          <Divider />
-          <Box sx={{ p: 1, bgcolor: 'grey.50' }}>
-            {technique.subtechniques.map((subtech) => {
-              const subCoverage = getCoverageInfo(subtech.rule_count);
+      
+      {/* Subtechniques */}
+      <Collapse in={expanded}>
+        {hasSubtechniques && (
+          <Box sx={{ bgcolor: theme.palette.mode === 'dark' ? 'background.default' : 'grey.50' }}>
+            <Divider />
+            {technique.subtechniques.map((sub) => {
+              const subCoverage = getCoverageInfo(sub.rule_count);
               return (
                 <Box
-                  key={subtech.technique_id}
-                  onClick={() => onClick(subtech.technique_id)}
+                  key={sub.technique_id}
                   sx={{
-                    p: 1.5,
-                    mb: 0.5,
-                    borderRadius: 1,
-                    cursor: 'pointer',
-                    bgcolor: 'background.paper',
-                    border: 1,
+                    p: 2,
+                    borderTop: 1,
                     borderColor: 'divider',
+                    cursor: 'pointer',
                     transition: 'all 0.2s',
                     '&:hover': {
-                      borderColor: 'primary.main',
-                      transform: 'translateX(4px)',
+                      bgcolor: 'action.hover',
                     },
-                    '&:last-child': { mb: 0 },
                   }}
+                  onClick={() => onClick(sub.technique_id)}
                 >
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <SubtechniqueIcon fontSize="small" color="action" />
-                    <Box flex={1}>
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Typography variant="body2" fontWeight="500" color="primary">
-                          {subtech.technique_id}
-                        </Typography>
-                        <Chip
-                          icon={subCoverage.icon}
-                          label={subCoverage.label}
-                          size="small"
-                          color={subCoverage.color}
-                          variant="outlined"
-                          sx={{ height: 18, '& .MuiChip-label': { px: 1 } }}
-                        />
-                      </Stack>
-                      <Typography variant="caption" color="text.secondary">
-                        {subtech.name}
-                      </Typography>
-                    </Box>
+                    <Typography variant="subtitle2" color="primary" fontWeight={500}>
+                      {sub.technique_id}
+                    </Typography>
+                    <Chip
+                      icon={subCoverage.icon}
+                      label={subCoverage.label}
+                      size="small"
+                      color={subCoverage.color}
+                      variant="outlined"
+                    />
                   </Stack>
+                  <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
+                    {sub.name}
+                  </Typography>
                 </Box>
               );
             })}
           </Box>
-        </Collapse>
-      )}
+        )}
+      </Collapse>
     </Paper>
   );
 }
 
 export default function AttackMatrix() {
+  const theme = useTheme();
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [tabValue, setTabValue] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -250,13 +302,40 @@ export default function AttackMatrix() {
   
   const { data, isLoading, error, refetch } = useMitreMatrixQuery(selectedPlatforms);
 
+  const handlePlatformChange = (event: SelectChangeEvent<string[]>) => {
+    const value = event.target.value;
+    setSelectedPlatforms(typeof value === 'string' ? value.split(',') : value);
+  };
+
+  const handleClearPlatforms = () => {
+    setSelectedPlatforms([]);
+  };
+
+  // Sort tactics by kill chain order
+  const sortedData = useMemo(() => {
+    if (!data) return null;
+    
+    const sortedMatrix = [...data.matrix].sort((a, b) => {
+      const aIndex = TACTIC_ORDER.indexOf(a.tactic_id.toLowerCase());
+      const bIndex = TACTIC_ORDER.indexOf(b.tactic_id.toLowerCase());
+      
+      // If not found in order, put at end
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      
+      return aIndex - bIndex;
+    });
+    
+    return { ...data, matrix: sortedMatrix };
+  }, [data]);
+
   // Group techniques by parent/subtechnique relationship
   const groupedData = useMemo(() => {
-    if (!data) return null;
+    if (!sortedData) return null;
 
     return {
-      ...data,
-      matrix: data.matrix.map((tactic: any) => {
+      ...sortedData,
+      matrix: sortedData.matrix.map((tactic: any) => {
         const techniqueMap = new Map<string, GroupedTechnique>();
         
         // First pass: identify parents and subtechniques
@@ -309,7 +388,7 @@ export default function AttackMatrix() {
         };
       }),
     };
-  }, [data]);
+  }, [sortedData]);
 
   // Filter techniques based on search
   const filteredData = useMemo(() => {
@@ -351,6 +430,27 @@ export default function AttackMatrix() {
     return { total, covered, percentage };
   }, [data]);
 
+  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
+  const handleTechniqueClick = (techniqueId: string) => {
+    setSelectedTechnique(techniqueId);
+    setDetailsOpen(true);
+  };
+
+  const toggleTechniqueExpansion = (techniqueId: string) => {
+    setExpandedTechniques(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(techniqueId)) {
+        newSet.delete(techniqueId);
+      } else {
+        newSet.add(techniqueId);
+      }
+      return newSet;
+    });
+  };
+
   if (error) {
     return <ErrorDisplay error={error} onRetry={refetch} />;
   }
@@ -359,64 +459,35 @@ export default function AttackMatrix() {
     return <LoadingIndicator />;
   }
 
-  const handleTechniqueClick = (techniqueId: string) => {
-    setSelectedTechnique(techniqueId);
-    setDetailsOpen(true);
-  };
-
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
-  const toggleExpanded = (techniqueId: string) => {
-    setExpandedTechniques(prev => {
-      const next = new Set(prev);
-      if (next.has(techniqueId)) {
-        next.delete(techniqueId);
-      } else {
-        next.add(techniqueId);
-      }
-      return next;
-    });
-  };
-
-  const platforms = ['Windows', 'Linux', 'macOS', 'Cloud', 'Mobile'];
-
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <Paper elevation={1} sx={{ p: 3, borderRadius: 0 }}>
-        <Stack spacing={3}>
-          <Box>
-            <Typography variant="h4" gutterBottom fontWeight="600">
-              MITRE ATT&CK Coverage Matrix
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Explore techniques by tactic and track detection coverage across your environment
-            </Typography>
-          </Box>
-
-          {/* Coverage Stats */}
-          <Stack direction="row" spacing={3}>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Coverage</Typography>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Typography variant="h6" fontWeight="bold">
-                  {coverageStats.percentage}%
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  ({coverageStats.covered}/{coverageStats.total})
-                </Typography>
-              </Stack>
-            </Box>
-            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-              <LinearProgress 
-                variant="determinate" 
-                value={coverageStats.percentage} 
-                sx={{ height: 8, borderRadius: 4, flex: 1 }}
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', pt: 2 }}>
+      {/* Header - Matching RulesExplorer/CveExplorer style */}
+      <Paper sx={{ p: 2, mb: 2, mx: 2 }}>
+        <Stack spacing={2}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h5">MITRE ATT&CK</Typography>
+            
+            {/* Coverage Badge */}
+            <Stack direction="row" spacing={2}>
+              <Chip
+                icon={<SecurityIcon />}
+                label={`${coverageStats.covered}/${coverageStats.total} techniques`}
+                color="primary"
+                variant="outlined"
               />
-            </Box>
-          </Stack>
+              <Box sx={{ minWidth: 100 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Coverage: {coverageStats.percentage}%
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={coverageStats.percentage}
+                  color={coverageStats.percentage > 70 ? 'success' : coverageStats.percentage > 40 ? 'warning' : 'error'}
+                  sx={{ height: 6, borderRadius: 3 }}
+                />
+              </Box>
+            </Stack>
+          </Box>
 
           {/* Controls */}
           <Stack direction="row" spacing={2} alignItems="center">
@@ -437,45 +508,47 @@ export default function AttackMatrix() {
               }}
             />
 
-            {/* Platform Filters */}
-            <Stack direction="row" spacing={1}>
-              <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
-                <FilterListIcon fontSize="small" sx={{ mr: 0.5 }} />
-                Platforms:
-              </Typography>
-              {platforms.map(platform => (
-                <Button
-                  key={platform}
-                  variant={selectedPlatforms.includes(platform) ? 'contained' : 'outlined'}
-                  size="small"
-                  onClick={() => {
-                    setSelectedPlatforms(prev =>
-                      prev.includes(platform)
-                        ? prev.filter(p => p !== platform)
-                        : [...prev, platform]
-                    );
-                  }}
-                  sx={{ minWidth: 'auto', px: 2 }}
-                >
-                  {platform}
-                </Button>
-              ))}
-              {selectedPlatforms.length > 0 && (
-                <Button
-                  size="small"
-                  color="secondary"
-                  onClick={() => setSelectedPlatforms([])}
-                >
-                  Clear
-                </Button>
-              )}
-            </Stack>
+            {/* Platform Filter */}
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel>Platforms</InputLabel>
+              <Select
+                multiple
+                value={selectedPlatforms}
+                onChange={handlePlatformChange}
+                input={<OutlinedInput label="Platforms" />}
+                renderValue={(selected) => selected.join(', ')}
+              >
+                {AVAILABLE_PLATFORMS.map((platform) => (
+                  <MenuItem key={platform} value={platform}>
+                    {platform}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {selectedPlatforms.length > 0 && (
+              <Button
+                size="small"
+                onClick={handleClearPlatforms}
+                startIcon={<ClearIcon />}
+              >
+                Clear
+              </Button>
+            )}
           </Stack>
         </Stack>
       </Paper>
 
       {/* Tabs */}
-      <Paper elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+      <Paper 
+        elevation={0} 
+        sx={{ 
+          mx: 2,
+          borderBottom: 1, 
+          borderColor: 'divider',
+          bgcolor: theme.palette.mode === 'dark' ? 'background.paper' : 'background.paper',
+        }}
+      >
         <Tabs
           value={tabValue}
           onChange={handleTabChange}
@@ -489,7 +562,7 @@ export default function AttackMatrix() {
             } 
           }}
         >
-          {filteredData?.matrix.map((tactic: any, index: number) => {
+          {filteredData?.matrix.map((tactic: any) => {
             // Count all techniques including subtechniques
             const allTechniques = tactic.techniques.flatMap((t: GroupedTechnique) => 
               [t, ...t.subtechniques]
@@ -506,52 +579,50 @@ export default function AttackMatrix() {
                     <Badge 
                       badgeContent={techniqueCount} 
                       color={coveredCount > 0 ? 'primary' : 'default'}
-                      max={999}
+                      max={99}
                     />
-                    {coveredCount > 0 && (
-                      <Chip
-                        label={`${Math.round((coveredCount / techniqueCount) * 100)}%`}
-                        size="small"
-                        color="success"
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
-                    )}
                   </Stack>
                 }
-                id={`tactic-tab-${index}`}
-                aria-controls={`tactic-tabpanel-${index}`}
               />
             );
           })}
         </Tabs>
       </Paper>
 
-      {/* Tab Panels */}
-      <Box sx={{ flex: 1, overflow: 'auto', p: 3, bgcolor: 'grey.50' }}>
+      {/* Content */}
+      <Box 
+        sx={{ 
+          flex: 1, 
+          overflow: 'auto', 
+          mx: 2,
+          bgcolor: theme.palette.mode === 'dark' ? 'background.default' : 'background.default',
+        }}
+      >
         {filteredData?.matrix.map((tactic: any, index: number) => (
           <TabPanel key={tactic.tactic_id} value={tabValue} index={index}>
             {tactic.techniques.length === 0 ? (
               <Alert severity="info">
-                {searchQuery 
-                  ? `No techniques found matching "${searchQuery}" in ${tactic.name}`
-                  : `No techniques available for ${tactic.name}`}
+                No techniques found for this tactic
               </Alert>
             ) : (
-              <Box 
-                sx={{ 
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-                  gap: 2,
-                  alignItems: 'start', // Prevent cards from stretching to row height
-                }}
-              >
+              <Box sx={{ 
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, 1fr)',
+                  md: 'repeat(3, 1fr)',
+                  lg: 'repeat(4, 1fr)',
+                },
+                gap: 2,
+                alignItems: 'start', // Critical: allows independent card heights
+              }}>
                 {tactic.techniques.map((technique: GroupedTechnique) => (
                   <TechniqueCard
                     key={technique.technique_id}
                     technique={technique}
                     onClick={handleTechniqueClick}
                     expanded={expandedTechniques.has(technique.technique_id)}
-                    onToggleExpand={() => toggleExpanded(technique.technique_id)}
+                    onToggleExpand={() => toggleTechniqueExpansion(technique.technique_id)}
                   />
                 ))}
               </Box>
@@ -561,14 +632,16 @@ export default function AttackMatrix() {
       </Box>
 
       {/* Technique Details Drawer */}
-      <TechniqueDetailDrawer
-        techniqueId={selectedTechnique}
-        open={detailsOpen}
-        onClose={() => {
-          setDetailsOpen(false);
-          setSelectedTechnique(null);
-        }}
-      />
+      {selectedTechnique && (
+        <TechniqueDetailDrawer
+          techniqueId={selectedTechnique}
+          open={detailsOpen}
+          onClose={() => {
+            setDetailsOpen(false);
+            setSelectedTechnique(null);
+          }}
+        />
+      )}
     </Box>
   );
 }
