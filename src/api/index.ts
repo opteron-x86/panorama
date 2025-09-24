@@ -15,6 +15,7 @@ export {
   fetchRuleById,
   fetchMitreMatrix,
   fetchMitreTechniques,
+  getMitreTechnique,
   fetchCves,
   fetchCveById,
   fetchFilters,

@@ -7,6 +7,7 @@ import {
   Pagination,
   MitreMatrixResponse,
   MitreTechniquesResponse,
+  MitreTechniqueDetail,
   MitreFilters,
   CvesResponse,
   CveDetail,
@@ -67,6 +68,10 @@ export async function fetchMitreTechniques(
   filters?: MitreFilters
 ): Promise<MitreTechniquesResponse> {
   return apiGet<MitreTechniquesResponse>('/mitre/techniques', buildParams(pagination, filters));
+}
+
+export async function fetchTechniqueDetail(techniqueId: string): Promise<MitreTechniqueDetail> {
+  return apiGet<MitreTechniqueDetail>(`/mitre/techniques/${techniqueId}`);
 }
 
 // CVE endpoints

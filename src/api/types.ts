@@ -68,6 +68,47 @@ export interface MitreTechniquesResponse {
   total: number;
 }
 
+
+export interface MitreTechniqueDetail {
+  technique_id: string;
+  name: string;
+  description: string | null;
+  tactic: {
+    tactic_id: string;
+    name: string;
+  } | null;
+  platforms: string[];
+  data_sources: string[];
+  kill_chain_phases: string[];
+  detection_description: string | null;
+  mitigation_description: string | null;
+  is_deprecated: boolean;
+  deprecated_date: string | null;
+  deprecation_reason: string | null;
+  revoked: boolean;
+  superseded_by: string | null;
+  version: string | null;
+  created_date: string | null;
+  updated_date: string | null;
+  detection_rules: Array<{
+    rule_id: string;
+    name: string;
+    severity: string;
+    confidence: number | null;
+  }>;
+  coverage: {
+    rule_count: number;
+    has_coverage: boolean;
+    coverage_level: 'high' | 'medium' | 'low' | 'none';
+  };
+  related_techniques: Array<{
+    technique_id: string;
+    name: string;
+    relationship: 'parent' | 'subtechnique';
+  }>;
+  references?: any;
+}
+
 export interface Cve {
   cve_id: string;
   description: string;

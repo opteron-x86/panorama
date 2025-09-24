@@ -8,6 +8,7 @@ import {
   fetchCveById,
   fetchFilters,
   checkHealth,
+  fetchTechniqueDetail,
 } from './endpoints';
 import {
   RulesResponse,
@@ -16,6 +17,7 @@ import {
   Pagination,
   MitreMatrixResponse,
   MitreTechniquesResponse,
+  MitreTechniqueDetail,
   MitreFilters,
   CvesResponse,
   CveDetail,
@@ -32,6 +34,7 @@ export const queryKeys = {
   mitreMatrix: (platforms?: string[]) => ['mitreMatrix', platforms] as const,
   mitreTechniques: (pagination?: Partial<Pagination>, filters?: MitreFilters) => 
     ['mitreTechniques', pagination, filters] as const,
+  mitreTechnique: (id: string) => ['mitreTechnique', id] as const,
   cves: (pagination?: Partial<Pagination>, filters?: CveFilters) => 
     ['cves', pagination, filters] as const,
   cve: (id: string) => ['cve', id] as const,
@@ -94,6 +97,19 @@ export function useMitreTechniquesQuery(
   return useQuery({
     queryKey: queryKeys.mitreTechniques(pagination, filters),
     queryFn: () => fetchMitreTechniques(pagination, filters),
+    ...options,
+  });
+}
+
+export function useTechniqueDetailQuery(
+  techniqueId: string | null,
+  options?: UseQueryOptions<MitreTechniqueDetail, Error>
+) {
+  return useQuery({
+    queryKey: techniqueId ? queryKeys.mitreTechnique(techniqueId) : ['mitreTechnique', null],
+    queryFn: () => techniqueId ? fetchTechniqueDetail(techniqueId) : Promise.reject('No technique ID'),
+    enabled: !!techniqueId,
+    staleTime: 5 * 60 * 1000,
     ...options,
   });
 }
