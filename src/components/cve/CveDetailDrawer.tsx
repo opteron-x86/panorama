@@ -11,7 +11,6 @@ import {
   CircularProgress,
   Tabs,
   Tab,
-  Divider,
   Link,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -46,12 +45,11 @@ export function CveDetailDrawer({ cveId, open, onClose }: CveDetailDrawerProps) 
   const [tabValue, setTabValue] = useState(0);
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
   
-  // Fetch rules that reference this CVE
+  // Fetch rules that reference this CVE - fixed options parameter
   const rulesQuery = useRulesQuery(
     { offset: 0, limit: 100 },
-    open && !!cveId ? 
-      { cve_ids: [cveId] } : undefined,
-    { enabled: open && !!cveId }
+    open && !!cveId ? { cve_ids: [cveId] } : undefined,
+    open && !!cveId ? { enabled: true } : { enabled: false }
   );
 
   const handleCopyId = () => {
@@ -107,58 +105,63 @@ export function CveDetailDrawer({ cveId, open, onClose }: CveDetailDrawerProps) 
                     {cve.cvss_score && (
                       <Chip label={`CVSS ${cve.cvss_score}`} size="small" />
                     )}
-                    <IconButton size="small" onClick={handleCopyId}>
-                      <ContentCopyIcon fontSize="small" />
-                    </IconButton>
                   </Stack>
                 )}
               </Box>
-              <IconButton onClick={onClose}>
-                <CloseIcon />
-              </IconButton>
+              <Stack direction="row" spacing={1}>
+                <IconButton onClick={handleCopyId} size="small">
+                  <ContentCopyIcon />
+                </IconButton>
+                <IconButton onClick={onClose}>
+                  <CloseIcon />
+                </IconButton>
+              </Stack>
             </Box>
           </Box>
 
+          {/* Loading state */}
           {isLoading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
               <CircularProgress />
             </Box>
           )}
 
+          {/* Error state */}
           {error && (
             <Box sx={{ p: 3 }}>
               <Alert severity="error">Failed to load CVE details</Alert>
             </Box>
           )}
 
+          {/* Content */}
           {cve && (
             <>
               <Tabs 
                 value={tabValue} 
-                onChange={(_, v) => setTabValue(v)}
+                onChange={(_, newValue) => setTabValue(newValue)}
                 sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}
               >
-                <Tab label="Overview" />
-                <Tab label="Linked Rules" />
-                <Tab label="Technical Details" />
+                <Tab label="Details" />
+                <Tab label={`Rules (${rulesQuery.data?.total || 0})`} />
+                <Tab label="Technical" />
               </Tabs>
 
-              <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+              <Box sx={{ flex: 1, overflow: 'auto', px: 3, pb: 3 }}>
                 <TabPanel value={tabValue} index={0}>
                   <Stack spacing={3}>
                     <Box>
-                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      <Typography variant="subtitle2" color="text.secondary">
                         Description
                       </Typography>
-                      <Typography>
+                      <Typography variant="body2" sx={{ mt: 1 }}>
                         {cve.description || 'No description available'}
                       </Typography>
                     </Box>
 
                     {cve.published_date && (
                       <Box>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                          Published Date
+                        <Typography variant="subtitle2" color="text.secondary">
+                          Published
                         </Typography>
                         <Typography>{formatDate(cve.published_date)}</Typography>
                       </Box>
@@ -166,23 +169,10 @@ export function CveDetailDrawer({ cveId, open, onClose }: CveDetailDrawerProps) 
 
                     {cve.modified_date && (
                       <Box>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        <Typography variant="subtitle2" color="text.secondary">
                           Last Modified
                         </Typography>
                         <Typography>{formatDate(cve.modified_date)}</Typography>
-                      </Box>
-                    )}
-
-                    {cve.cwe_ids && cve.cwe_ids.length > 0 && (
-                      <Box>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                          CWE IDs
-                        </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap">
-                          {cve.cwe_ids.map(cwe => (
-                            <Chip key={cwe} label={cwe} size="small" variant="outlined" />
-                          ))}
-                        </Stack>
                       </Box>
                     )}
                   </Stack>
@@ -190,40 +180,29 @@ export function CveDetailDrawer({ cveId, open, onClose }: CveDetailDrawerProps) 
 
                 <TabPanel value={tabValue} index={1}>
                   {rulesQuery.isLoading ? (
-                    <CircularProgress />
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                      <CircularProgress />
+                    </Box>
                   ) : rulesQuery.data?.rules.length ? (
                     <Stack spacing={2}>
                       {rulesQuery.data.rules.map(rule => (
-                        <Box 
+                        <Box
                           key={rule.rule_id}
                           onClick={() => handleRuleClick(rule.rule_id)}
-                          sx={{ 
-                            p: 2, 
-                            border: 1, 
+                          sx={{
+                            p: 2,
+                            border: 1,
                             borderColor: 'divider',
                             borderRadius: 1,
                             cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            '&:hover': { 
+                            '&:hover': {
                               bgcolor: 'action.hover',
-                              borderColor: 'primary.main',
-                              transform: 'translateX(4px)',
-                            }
+                            },
                           }}
                         >
-                          <Typography variant="subtitle1" fontWeight={500}>
-                            {rule.name}
-                          </Typography>
+                          <Typography variant="subtitle1">{rule.name}</Typography>
                           <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                            <Chip 
-                              label={rule.severity}
-                              size="small"
-                              sx={{
-                                bgcolor: getSeverityColor(rule.severity),
-                                color: 'white',
-                              }}
-                            />
-                            <Chip label={rule.rule_type} size="small" variant="outlined" />
+                            <Chip label={rule.severity} size="small" variant="outlined" />
                             <Chip label={rule.source} size="small" variant="outlined" />
                             {rule.is_active && (
                               <Chip label="Active" size="small" color="success" />

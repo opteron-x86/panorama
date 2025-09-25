@@ -61,12 +61,21 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-function getCoverageColor(level: string) {
+function getCoverageColor(level: string): "error" | "warning" | "success" | "default" | "primary" | "secondary" | "info" {
   switch (level) {
     case 'high': return 'success';
     case 'medium': return 'warning';
     case 'low': return 'error';
-    default: return 'inherit';
+    default: return 'default';
+  }
+}
+
+function getCoverageColorForProgress(level: string): "error" | "warning" | "success" | "primary" | "secondary" | "info" | "inherit" {
+  switch (level) {
+    case 'high': return 'success';
+    case 'medium': return 'warning';
+    case 'low': return 'error';
+    default: return 'primary'; // Use 'primary' instead of 'default' for LinearProgress
   }
 }
 
@@ -186,7 +195,7 @@ export default function TechniqueDetailDrawer({
                   <LinearProgress
                     variant="determinate"
                     value={Math.min(technique.coverage.rule_count * 20, 100)}
-                    color={getCoverageColor(technique.coverage.coverage_level)}
+                    color={getCoverageColorForProgress(technique.coverage.coverage_level)}
                     sx={{ height: 6, borderRadius: 3 }}
                   />
                 </Box>
@@ -230,31 +239,12 @@ export default function TechniqueDetailDrawer({
                     </ListItemButton>
                     <Collapse in={expandedSections.has('description')}>
                       <Box sx={{ p: 2 }}>
-                        <Typography variant="body2">
-                          {technique.description || 'No description available'}
+                        <Typography variant="body2" whiteSpace="pre-wrap">
+                          {technique.description}
                         </Typography>
                       </Box>
                     </Collapse>
                   </Paper>
-
-                  {/* Platforms */}
-                  {technique.platforms.length > 0 && (
-                    <Paper elevation={0} sx={{ p: 2, border: 1, borderColor: 'divider' }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Platforms
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        {technique.platforms.map(platform => (
-                          <Chip
-                            key={platform}
-                            label={platform}
-                            size="small"
-                            variant="outlined"
-                          />
-                        ))}
-                      </Stack>
-                    </Paper>
-                  )}
 
                   {/* Mitigations */}
                   {technique.mitigation_description && (

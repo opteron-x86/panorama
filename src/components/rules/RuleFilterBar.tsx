@@ -2,7 +2,6 @@
 import React from 'react';
 import {
   Box,
-  Chip,
   FormControl,
   InputLabel,
   MenuItem,
@@ -10,6 +9,7 @@ import {
   Stack,
   TextField,
   Button,
+  SelectChangeEvent,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -39,15 +39,27 @@ export function RuleFilterBar() {
           }}
         />
         
-        <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel>Severity</InputLabel>
-          <Select
+        <FormControl 
+          size="small" 
+          sx={{ minWidth: 150 }}
+          variant="outlined"
+        >
+          <InputLabel 
+            id="severity-label"
+            shrink={filters.severities && filters.severities.length > 0}
+          >
+            Severity
+          </InputLabel>
+          <Select<string[]>
+            labelId="severity-label"
             multiple
             value={filters.severities || []}
-            onChange={(e) => setFilters({ 
+            onChange={(e: SelectChangeEvent<string[]>) => setFilters({ 
               severities: e.target.value as string[] 
             })}
-            renderValue={(selected) => selected.join(', ')}
+            renderValue={(selected) => (selected as string[]).join(', ')}
+            label="Severity"
+            notched={filters.severities && filters.severities.length > 0}
           >
             {filtersQuery.data?.severities.map(severity => (
               <MenuItem key={severity} value={severity}>
@@ -57,15 +69,27 @@ export function RuleFilterBar() {
           </Select>
         </FormControl>
         
-        <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel>Type</InputLabel>
-          <Select
+        <FormControl 
+          size="small" 
+          sx={{ minWidth: 150 }}
+          variant="outlined"
+        >
+          <InputLabel 
+            id="type-label"
+            shrink={filters.rule_types && filters.rule_types.length > 0}
+          >
+            Type
+          </InputLabel>
+          <Select<string[]>
+            labelId="type-label"
             multiple
             value={filters.rule_types || []}
-            onChange={(e) => setFilters({ 
+            onChange={(e: SelectChangeEvent<string[]>) => setFilters({ 
               rule_types: e.target.value as string[] 
             })}
-            renderValue={(selected) => selected.join(', ')}
+            renderValue={(selected) => (selected as string[]).join(', ')}
+            label="Type"
+            notched={filters.rule_types && filters.rule_types.length > 0}
           >
             {filtersQuery.data?.rule_types.map(type => (
               <MenuItem key={type.value} value={type.value}>
@@ -75,15 +99,27 @@ export function RuleFilterBar() {
           </Select>
         </FormControl>
         
-        <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel>Source</InputLabel>
-          <Select
+        <FormControl 
+          size="small" 
+          sx={{ minWidth: 150 }}
+          variant="outlined"
+        >
+          <InputLabel 
+            id="source-label"
+            shrink={filters.source_ids && filters.source_ids.length > 0}
+          >
+            Source
+          </InputLabel>
+          <Select<string[]>
+            labelId="source-label"
             multiple
             value={filters.source_ids || []}
-            onChange={(e) => setFilters({ 
+            onChange={(e: SelectChangeEvent<string[]>) => setFilters({ 
               source_ids: e.target.value as string[] 
             })}
-            renderValue={(selected) => selected.join(', ')}
+            renderValue={(selected) => (selected as string[]).join(', ')}
+            label="Source"
+            notched={filters.source_ids && filters.source_ids.length > 0}
           >
             {filtersQuery.data?.sources.map(source => (
               <MenuItem key={source.value} value={source.value}>

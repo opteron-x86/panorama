@@ -15,6 +15,8 @@ import {
   ListSubheader,
   Typography,
   CircularProgress,
+  SelectChangeEvent,
+  OutlinedInput,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
@@ -36,7 +38,6 @@ export function MitreTechniquesDropdown({
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   
-  // Fetch all techniques without pagination for dropdown
   const { data, isLoading } = useMitreTechniquesQuery(
     { offset: 0, limit: 1000 }, 
     { include_deprecated: false }
@@ -54,7 +55,7 @@ export function MitreTechniquesDropdown({
     );
   }, [data?.techniques, searchTerm]);
 
-  const handleChange = (event: any) => {
+  const handleChange = (event: SelectChangeEvent<string[]>) => {
     const selected = event.target.value as string[];
     onChange(selected);
   };
@@ -74,9 +75,19 @@ export function MitreTechniquesDropdown({
   };
 
   return (
-    <FormControl size={size} sx={{ minWidth }}>
-      <InputLabel>MITRE Techniques</InputLabel>
+    <FormControl 
+      size={size} 
+      sx={{ minWidth }}
+      variant="outlined"
+    >
+      <InputLabel 
+        id="mitre-techniques-label"
+        shrink={value.length > 0 || isOpen}
+      >
+        MITRE Techniques
+      </InputLabel>
       <Select
+        labelId="mitre-techniques-label"
         multiple
         value={value}
         onChange={handleChange}
@@ -87,6 +98,13 @@ export function MitreTechniquesDropdown({
           setSearchTerm('');
         }}
         renderValue={renderValue}
+        label="MITRE Techniques"
+        input={
+          <OutlinedInput 
+            label="MITRE Techniques"
+            notched={value.length > 0 || isOpen}
+          />
+        }
         MenuProps={{
           PaperProps: {
             style: {
@@ -94,7 +112,6 @@ export function MitreTechniquesDropdown({
               width: 400,
             },
           },
-          // Keep menu open when interacting with search field
           autoFocus: false,
         }}
       >
