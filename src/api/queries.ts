@@ -86,15 +86,11 @@ export function useRuleQuery(
 }
 
 // MITRE queries
-export function useMitreMatrixQuery(
-  platforms?: string[],
-  options?: QueryOptions<MitreMatrixResponse>
-) {
+export function useMitreMatrixQuery(platform?: string) {
   return useQuery({
-    queryKey: queryKeys.mitreMatrix(platforms),
-    queryFn: () => fetchMitreMatrix(platforms),
-    staleTime: 30 * 60 * 1000,
-    ...options,
+    queryKey: ['mitre-matrix', platform],
+    queryFn: () => fetchMitreMatrix(platform),
+    enabled: true, // Always enabled, will fetch all if no platform specified
   });
 }
 

@@ -58,8 +58,8 @@ export async function fetchRuleById(id: string): Promise<RuleDetail> {
 }
 
 // MITRE endpoints
-export async function fetchMitreMatrix(platforms?: string[]): Promise<MitreMatrixResponse> {
-  const params = platforms?.length ? { platforms: platforms.join(',') } : undefined;
+export async function fetchMitreMatrix(platform?: string): Promise<MitreMatrixResponse> {
+  const params = platform ? { platform } : undefined;
   return apiGet<MitreMatrixResponse>('/mitre/matrix', params);
 }
 

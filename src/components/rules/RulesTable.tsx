@@ -10,7 +10,7 @@ import {
 } from '@mui/x-data-grid';
 import { Chip, Box } from '@mui/material';
 import { Rule } from '@/api/types';
-import { formatDate, getSeverityColor } from '@/api/utils';
+import { formatDate, formatDateOnly, getSeverityColor } from '@/api/utils';
 import { useFilterStore } from '@/store/filterStore';
 
 interface RulesTableProps {
@@ -113,14 +113,14 @@ export function RulesTable({
       headerName: 'Last Updated',
       width: 140,
       sortable: true,
-      valueFormatter: (params: any) => formatDate(params.value),
+      valueGetter: (value: any) => formatDateOnly(value),
     },
     {
       field: 'created_date',
       headerName: 'Created',
       width: 140,
       sortable: true,
-      valueFormatter: (params: any) => formatDate(params.value),
+      valueGetter: (value: any) => formatDateOnly(value),
     },
     {
       field: 'is_active',

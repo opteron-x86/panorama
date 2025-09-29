@@ -293,22 +293,24 @@ function TechniqueCard({
 
 export default function AttackMatrix() {
   const theme = useTheme();
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const [selectedPlatform, setSelectedPlatform] = useState<string>('');
   const [tabValue, setTabValue] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTechnique, setSelectedTechnique] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [expandedTechniques, setExpandedTechniques] = useState<Set<string>>(new Set());
   
-  const { data, isLoading, error, refetch } = useMitreMatrixQuery(selectedPlatforms);
+  // Pass single platform or undefined
+  const { data, isLoading, error, refetch } = useMitreMatrixQuery(
+    selectedPlatform || undefined
+  );
 
-  const handlePlatformChange = (event: SelectChangeEvent<string[]>) => {
-    const value = event.target.value;
-    setSelectedPlatforms(typeof value === 'string' ? value.split(',') : value);
+  const handlePlatformChange = (event: SelectChangeEvent<string>) => {
+    setSelectedPlatform(event.target.value);
   };
 
-  const handleClearPlatforms = () => {
-    setSelectedPlatforms([]);
+  const handleClearPlatform = () => {
+    setSelectedPlatform('');
   };
 
   // Sort tactics by kill chain order
@@ -508,16 +510,18 @@ export default function AttackMatrix() {
               }}
             />
 
-            {/* Platform Filter */}
+            {/* Platform Filter - Single Select */}
             <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Platforms</InputLabel>
+              <InputLabel>Platform</InputLabel>
               <Select
-                multiple
-                value={selectedPlatforms}
+                value={selectedPlatform}
                 onChange={handlePlatformChange}
-                input={<OutlinedInput label="Platforms" />}
-                renderValue={(selected) => selected.join(', ')}
+                input={<OutlinedInput label="Platform" />}
+                displayEmpty
               >
+                <MenuItem value="">
+
+                </MenuItem>
                 {AVAILABLE_PLATFORMS.map((platform) => (
                   <MenuItem key={platform} value={platform}>
                     {platform}
@@ -526,10 +530,10 @@ export default function AttackMatrix() {
               </Select>
             </FormControl>
 
-            {selectedPlatforms.length > 0 && (
+            {selectedPlatform && (
               <Button
                 size="small"
-                onClick={handleClearPlatforms}
+                onClick={handleClearPlatform}
                 startIcon={<ClearIcon />}
               >
                 Clear
