@@ -1,16 +1,16 @@
 // src/components/rules/RulesTable.tsx
-import React from 'react';
-import {
-  DataGrid,
-  GridColDef,
-  GridRenderCellParams,
+import React, { useMemo, useCallback } from 'react';
+import { 
+  DataGrid, 
+  GridColDef, 
   GridPaginationModel,
-  GridRowParams,
   GridSortModel,
+  GridRowParams,
+  GridRenderCellParams 
 } from '@mui/x-data-grid';
-import { Chip, Box } from '@mui/material';
+import { Chip, Box, Typography } from '@mui/material';
 import { Rule } from '@/api/types';
-import { formatDate, formatDateOnly, getSeverityColor } from '@/api/utils';
+import { formatDate, getSeverityColor } from '@/api/utils';
 import { useFilterStore } from '@/store/filterStore';
 
 interface RulesTableProps {
@@ -32,41 +32,66 @@ export function RulesTable({
   onPageChange,
   onPageSizeChange,
   onRuleSelect,
-  loading,
+  loading = false,
 }: RulesTableProps) {
   const { sortBy, sortDir, setSorting } = useFilterStore();
   
-  // Map backend field names to DataGrid sort model
-  const sortModel: GridSortModel = sortBy ? [{
-    field: sortBy,
-    sort: sortDir || 'desc'
-  }] : [];
+  // Memoize pagination model to prevent unnecessary updates
+  const paginationModel = useMemo(() => ({
+    page: page - 1,
+    pageSize,
+  }), [page, pageSize]);
 
-  const handleSortModelChange = (model: GridSortModel) => {
+  // Memoize sort model
+  const sortModel = useMemo<GridSortModel>(() => {
+    if (sortBy) {
+      return [{
+        field: sortBy,
+        sort: sortDir as 'asc' | 'desc'
+      }];
+    }
+    return [];
+  }, [sortBy, sortDir]);
+
+  // Stable callback for pagination changes
+  const handlePaginationModelChange = useCallback((model: GridPaginationModel) => {
+    // Only update if values actually changed
+    if (model.page !== page - 1) {
+      onPageChange(model.page + 1);
+    }
+    if (model.pageSize !== pageSize) {
+      onPageSizeChange(model.pageSize);
+    }
+  }, [page, pageSize, onPageChange, onPageSizeChange]);
+
+  // Stable callback for sort changes
+  const handleSortModelChange = useCallback((model: GridSortModel) => {
     if (model.length > 0) {
       const { field, sort } = model[0];
-      setSorting(field, sort as 'asc' | 'desc');
-    } else {
-      // Default sorting when cleared
-      setSorting('updated_date', 'desc');
+      if (field && sort) {
+        setSorting(field, sort);
+      }
     }
-  };
+  }, [setSorting]);
 
-  const columns: GridColDef<Rule>[] = [
-    {
-      field: 'name',
-      headerName: 'Name',
-      flex: 2,
+  // Stable callback for row clicks
+  const handleRowClick = useCallback((params: GridRowParams<Rule>) => {
+    onRuleSelect?.(params.row.rule_id);
+  }, [onRuleSelect]);
+
+  const columns: GridColDef[] = [
+    { 
+      field: 'name', 
+      headerName: 'Name', 
+      flex: 1,
       minWidth: 250,
-      sortable: true,
     },
-    {
-      field: 'severity',
+    { 
+      field: 'severity', 
       headerName: 'Severity',
-      width: 100,
-      sortable: true,
+      width: 120,
       renderCell: (params) => (
-        <Chip
+        <Chip 
           label={params.value}
           size="small"
           sx={{
@@ -77,21 +102,26 @@ export function RulesTable({
         />
       ),
     },
-    {
+    { 
       field: 'rule_type',
       headerName: 'Type',
       width: 120,
-      sortable: true,
     },
     {
       field: 'source',
       headerName: 'Source',
       width: 120,
-      sortable: false, // Backend doesn't support sorting by source
+      renderCell: (params) => (
+        <Chip 
+          label={params.value || 'Unknown'}
+          size="small"
+          variant="outlined"
+        />
+      ),
     },
     {
       field: 'mitre_techniques',
-      headerName: 'MITRE',
+      headerName: 'ATT&CK Techniques',
       width: 180,
       sortable: false, // Complex field, not sortable
       renderCell: (params: GridRenderCellParams<Rule, string[]>) => {
@@ -110,23 +140,14 @@ export function RulesTable({
     },
     {
       field: 'updated_date',
-      headerName: 'Last Updated',
-      width: 140,
-      sortable: true,
-      valueGetter: (value: any) => formatDateOnly(value),
-    },
-    {
-      field: 'created_date',
-      headerName: 'Created',
-      width: 140,
-      sortable: true,
-      valueGetter: (value: any) => formatDateOnly(value),
+      headerName: 'Updated',
+      width: 120,
+      valueFormatter: (value) => formatDate(value),
     },
     {
       field: 'is_active',
       headerName: 'Status',
-      width: 90,
-      sortable: false,
+      width: 100,
       renderCell: (params) => (
         <Chip
           label={params.value ? 'Active' : 'Inactive'}
@@ -148,14 +169,8 @@ export function RulesTable({
       
       // Pagination configuration
       pageSizeOptions={[10, 25, 50, 100]}
-      paginationModel={{
-        page: page - 1,
-        pageSize,
-      }}
-      onPaginationModelChange={(model: GridPaginationModel) => {
-        if (model.page !== page - 1) onPageChange(model.page + 1);
-        if (model.pageSize !== pageSize) onPageSizeChange(model.pageSize);
-      }}
+      paginationModel={paginationModel}
+      onPaginationModelChange={handlePaginationModelChange}
       paginationMode="server"
       
       // Sorting configuration - server-side sorting
@@ -164,9 +179,7 @@ export function RulesTable({
       onSortModelChange={handleSortModelChange}
       
       // Row interaction
-      onRowClick={(params: GridRowParams<Rule>) => {
-        onRuleSelect?.(params.row.rule_id);
-      }}
+      onRowClick={handleRowClick}
       disableRowSelectionOnClick
       disableColumnSelector
       hideFooterSelectedRowCount
