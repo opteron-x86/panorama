@@ -44,49 +44,98 @@ export default function CveExplorer() {
       field: 'cve_id',
       headerName: 'CVE ID',
       width: 150,
+      renderCell: (params) => {
+        const isRejected = params.row.description?.toLowerCase().includes('reject');
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                textDecoration: isRejected ? 'line-through' : 'none',
+                opacity: isRejected ? 0.6 : 1,
+              }}
+            >
+              {params.value}
+            </Typography>
+            {isRejected && (
+              <Chip
+                label="REJECTED"
+                size="small"
+                color="error"
+                variant="outlined"
+                sx={{ height: 20 }}
+              />
+            )}
+          </Box>
+        );
+      },
     },
     {
       field: 'description',
       headerName: 'Description',
       flex: 1,
       minWidth: 350,
-      renderCell: (params) => (
-        <Typography 
-          variant="body2" 
-          sx={{
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-          }}
-        >
-          {params.value}
-        </Typography>
-      ),
+      renderCell: (params) => {
+        const isRejected = params.value?.toLowerCase().includes('reject');
+        return (
+          <Typography 
+            variant="body2" 
+            sx={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              opacity: isRejected ? 0.6 : 1,
+            }}
+          >
+            {params.value}
+          </Typography>
+        );
+      },
     },
     {
       field: 'severity',
       headerName: 'Severity',
       width: 110,
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          sx={{
-            bgcolor: getSeverityColor(params.value),
-            color: 'white',
-            fontWeight: 500,
-          }}
-        />
-      ),
+      renderCell: (params) => {
+        const isRejected = params.row.description?.toLowerCase().includes('reject');
+        
+        if (!params.value || isRejected) {
+          return (
+            <Chip
+              label={isRejected ? "N/A" : "Unknown"}
+              size="small"
+              variant="outlined"
+              sx={{
+                borderColor: '#6b7280',
+                color: '#6b7280',
+                fontWeight: 500,
+              }}
+            />
+          );
+        }
+        
+        return (
+          <Chip
+            label={params.value}
+            size="small"
+            sx={{
+              bgcolor: getSeverityColor(params.value),
+              color: 'white',
+              fontWeight: 500,
+            }}
+          />
+        );
+      },
     },
     {
       field: 'cvss_score',
       headerName: 'CVSS',
       width: 80,
       renderCell: (params) => {
-        if (!params.value) return '-';
+        const isRejected = params.row.description?.toLowerCase().includes('reject');
+        if (!params.value || isRejected) return '-';
         return (
           <Typography variant="body2" fontWeight={600}>
             {Number(params.value).toFixed(1)}

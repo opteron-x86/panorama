@@ -5,7 +5,11 @@ export function isRuleDetail(rule: Rule | RuleDetail): rule is RuleDetail {
   return 'rule_content' in rule;
 }
 
-export function getSeverityColor(severity: string): string {
+export function getSeverityColor(severity: string | null | undefined): string {
+  if (!severity) {
+    return '#6b7280';
+  }
+  
   const colors: Record<string, string> = {
     critical: '#dc2626',
     high: '#ea580c',
